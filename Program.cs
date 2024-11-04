@@ -24,7 +24,7 @@ namespace fur2mp3 {
         async Task RunAsync()
         {
             RandomProviders.InitializeAll();
-            if(File.ReadAllText(".core/crentential.txt") == "YOUR_TOKEN_HERE") {
+            if(File.ReadAllText(".core/credential.txt") == "YOUR_TOKEN_HERE") {
                 Console.WriteLine("you need to assign your bot token in .core/credential.txt!");
                 return;
             }
