@@ -21,18 +21,13 @@ namespace fur2mp3.Internal {
         {
             string f = File.ReadAllText(".core/fus_osc_config.yaml");
             f += $"  width: {x}\n  height: {y}\n";
-
-            string codec = GPUDetector.GetGPUType() switch
-            {
-                GPUType.NONE => "libx264",
-                GPUType.NV => "h264_nvenc",
-                GPUType.RADEON => "h264_amf",
-                GPUType.ARC => "h264_qsv",
-                _ => "libx264",
-            };
             f += "ffmpeg_cli: !FFmpegOutputConfig\n" +
                 "  path: \n" +
-                $"  video_template: -c:v {codec} -movflags faststart\n";
+                $"  video_template: -c:v {ProcessHandler.GetHWAccelCodec(GPUDetector.GetGPUType(), format)} {(format == FileFormat.mp4 
+                    ? "-movflags +faststart+frag_keyframe+empty_moov+default_base_moof" 
+                    : null)}"+
+                "\n";
+            f += $"  audio_template: -c:a {ProcessHandler.GetAudioCodec(format)}\n";
             f += "channels:\n";
             for (int i = 0; i < channels.Length; i++) {
                 CorrscopeEntry s = channels[i];

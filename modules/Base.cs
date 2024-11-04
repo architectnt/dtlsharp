@@ -253,7 +253,14 @@ namespace fur2mp3.module {
                         await File.WriteAllTextAsync($"{tmpfoldr}/osc.yaml", CorrscopeWrapper.CreateCorrscopeOverrides(format, $"{Directory.GetCurrentDirectory()}/{tmpfoldr}/master.wav", [.. entries], w, h), cf.Token);
                         await ModifyOriginalResponseAsync(m => m.Content = cff);
 
-                        r = await ProcessHandler.RenderCorrscopeVideo($"{tmpfoldr}/osc.yaml", $"{tmpfoldr}/oscoutp.{format}", cf.Token);
+                        if((r = await ProcessHandler.RenderCorrscopeVideo($"{tmpfoldr}/osc.yaml", $"{tmpfoldr}/oscoutp.{format}", cf.Token)).exitcode != 0){
+                            r.exitcode = 0x01010101;
+                            r.message = $"osc rendering failed. ({r.message})";
+                            return;
+                        }
+                        Console.WriteLine(r.message);
+
+
                         string codec = ProcessHandler.GetHWAccelCodec(GPUDetector.GetGPUType(), format);
 
                         string hw = GPUDetector.GetGPUType() switch
@@ -269,11 +276,15 @@ namespace fur2mp3.module {
                         {
                             int tbitrate = 23 * 8192 / (int)(1.048576f *(len / 44100)) - 192;
                             await ModifyOriginalResponseAsync(m => m.Content = "Compressing video..");
-                            r = await ProcessHandler.ConvertMediaStdOut($"{tmpfoldr}/oscoutp.{format}", $"{format}", hw, args: $"-c:v {codec} -b:v {tbitrate}k -b:a 192k -movflags +faststart+frag_keyframe+empty_moov+default_base_moof", ct: cf.Token);
+                            r = await ProcessHandler.ConvertMediaStdOut($"{tmpfoldr}/oscoutp.{format}", $"{format}", hw, args: $"-c:v {codec} -b:v {tbitrate}k -b:a 192k {(format == FileFormat.mp4 
+                                ? "-movflags +faststart+frag_keyframe+empty_moov+default_base_moof" 
+                                : null)}", ct: cf.Token);
                         }
                         else
                         {
-                            r = await ProcessHandler.ConvertMediaStdOut($"{tmpfoldr}/oscoutp.{format}", $"{format}", hw, args: $"-c:v {codec} -b:a 192k -movflags +faststart+frag_keyframe+empty_moov+default_base_moof", ct: cf.Token);
+                            r = await ProcessHandler.ConvertMediaStdOut($"{tmpfoldr}/oscoutp.{format}", $"{format}", hw, args: $"-c:v {codec} -b:a 192k {(format == FileFormat.mp4 
+                                ? "-movflags +faststart+frag_keyframe+empty_moov+default_base_moof" 
+                                : null)}", ct: cf.Token);
                         }
                     }
                     else

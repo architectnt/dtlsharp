@@ -14,7 +14,7 @@ namespace fur2mp3.Internal {
         ADRENO,
         VIDEOCORE,
     }
-
+    
     public class GPUDetector {
         public static GPUType GetGPUType() {
             string gpuInfo = string.Empty;

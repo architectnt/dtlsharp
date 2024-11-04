@@ -38,10 +38,19 @@ namespace fur2mp3.Internal {
             (GPUType.RADEON, FileFormat.mp4) => "h264_amf",
             (GPUType.ARC, FileFormat.mp4) => "h264_qsv",
             (GPUType.NONE, FileFormat.webm) => "libvpx",
-            (GPUType.NV, FileFormat.webm) => "vp9_cuvid",
+            (GPUType.NV, FileFormat.webm) => "libvpx", // GOD DAMN IT
             (GPUType.RADEON, FileFormat.webm) => "libvpx", // gotcha: may not support vp9
-            (GPUType.ARC, FileFormat.webm) => "vp9_qsv",
+            (GPUType.ARC, FileFormat.webm) => "libvpx", // go back and provide hardware accel if needed THIS IS ABYSMAL
             _ => "libx264"
+        };
+
+        public static string GetAudioCodec(FileFormat format) => format switch {
+            FileFormat.mp3 => "mp3",
+            FileFormat.ogg => "libvorbis",
+            FileFormat.opus => "libopus",
+            FileFormat.webm => "libopus",
+            FileFormat.mp4 => "aac",
+            _ => null // if you know you know
         };
 
         public static string GetFFMPEGFormat(string filename)
