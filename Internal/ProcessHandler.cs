@@ -21,8 +21,29 @@ namespace fur2mp3.Internal {
         public string message;
     }
 
+    public enum FileFormat {
+        mp3,
+        ogg,
+        opus,
+        mp4,
+        webm,
+    }
+
     public static class ProcessHandler
     {
+
+        public static string GetHWAccelCodec(GPUType gpuType, FileFormat format) => (gpuType, format) switch {
+            (GPUType.NONE, FileFormat.mp4) => "libx264",
+            (GPUType.NV, FileFormat.mp4) => "h264_nvenc",
+            (GPUType.RADEON, FileFormat.mp4) => "h264_amf",
+            (GPUType.ARC, FileFormat.mp4) => "h264_qsv",
+            (GPUType.NONE, FileFormat.webm) => "libvpx",
+            (GPUType.NV, FileFormat.webm) => "vp9_cuvid",
+            (GPUType.RADEON, FileFormat.webm) => "libvpx", // gotcha: may not support vp9
+            (GPUType.ARC, FileFormat.webm) => "vp9_qsv",
+            _ => "libx264"
+        };
+
         public static string GetFFMPEGFormat(string filename)
         {
             string fmt = Path.GetExtension(filename).ToLower().Replace(".", null).Trim();

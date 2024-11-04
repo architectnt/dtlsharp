@@ -9,10 +9,8 @@ using System.Diagnostics;
 using fur2mp3.Internal;
 using fur2mp3.Internal.Native;
 
-namespace fur2mp3.modules
-{
-    public enum CodecType
-    {
+namespace fur2mp3.module {
+    public enum CodecType {
         h264,
         hevc,
     }
@@ -30,7 +28,7 @@ namespace fur2mp3.modules
     {
 
         [SlashCommand("fur2mp3", "convert chiptune to audio")]
-        public async Task Fur2mp3(IAttachment attachment = null, string url = null, bool oscRender = false, uint subsong = 0, uint loopsOrDuration = 0, CodecType codecType = CodecType.h264, Resolution res = Resolution.FHD) {
+        public async Task Fur2mp3(IAttachment attachment = null, string url = null, FileFormat format = FileFormat.mp3, uint subsong = 0, uint loopsOrDuration = 0, CodecType codecType = CodecType.h264, Resolution res = Resolution.FHD) {
             List<string> 
                 furmats = [".ftm", ".dmf", ".fc13", ".fc14", ".mod", ".fc", ".0cc", ".dnm", ".eft", ".fub", ".fte", ".fur"], 
                 midi = [".mid", ".midi"], 
@@ -81,6 +79,7 @@ namespace fur2mp3.modules
             IUser orgusr = Context.User;
             Dictionary<ulong, int> externalcanceltimes = [];
             string cff = null;
+            bool oscRender = format == FileFormat.mp4 || format == FileFormat.webm;
 
             try {
                 CancellationTokenSource cf = new();
@@ -196,18 +195,17 @@ namespace fur2mp3.modules
                             r = await ProcessHandler.ConvertMediaStdOut(c[i], "s16le", args: $"-ac 2 -ar 44100", ct: cf.Token);
                             short[] samples = new short[r.stdout.Length / 2];
                             Buffer.BlockCopy(r.stdout, 0, samples, 0, r.stdout.Length);
-                            short[] fc = LibAAFC.ToShortSamples(LibAAFC.Import(LibAAFC.Export(samples, 2, 44100), null));
-                            if (!fc.All(value => value == 0))
+                            if (!samples.All(value => value == 0))
                             {
-                                for (j = 0; j < fc.Length; j++)
+                                for (j = 0; j < samples.Length; j++)
                                 {
-                                    int mp = Math.Abs((int)fc[j]);
+                                    int mp = Math.Abs((int)samples[j]);
                                     if (mp > lchn) lchn = mp;
                                 }
                                 float ampc = ((float)short.MaxValue / lchn) * 0.85f;
-                                outputdt.Add((WavUtility.Export(fc, 44100, 2, 16), $"{Directory.GetCurrentDirectory()}/{tmpfoldr}/{i}.wav", ampc));
+                                outputdt.Add((WavUtility.Export(samples, 44100, 2, 16), $"{Directory.GetCurrentDirectory()}/{tmpfoldr}/{i}.wav", ampc));
                             }
-                            channels.Add(fc);
+                            channels.Add(samples);
                         }
                         for (i = 0; i < channels.Count; i++)
                         {
@@ -252,18 +250,11 @@ namespace fur2mp3.modules
                         };
 
                         cff = "Rendering oscilloscope video";
-                        await File.WriteAllTextAsync($"{tmpfoldr}/osc.yaml", CorrscopeWrapper.CreateCorrscopeOverrides($"{Directory.GetCurrentDirectory()}/{tmpfoldr}/master.wav", [.. entries], w, h), cf.Token);
+                        await File.WriteAllTextAsync($"{tmpfoldr}/osc.yaml", CorrscopeWrapper.CreateCorrscopeOverrides(format, $"{Directory.GetCurrentDirectory()}/{tmpfoldr}/master.wav", [.. entries], w, h), cf.Token);
                         await ModifyOriginalResponseAsync(m => m.Content = cff);
 
-                        r = await ProcessHandler.RenderCorrscopeVideo($"{tmpfoldr}/osc.yaml", $"{tmpfoldr}/oscoutp.mp4", cf.Token);
-                        string codec = GPUDetector.GetGPUType() switch
-                        {
-                            GPUType.NONE => $"libx{(codecType == CodecType.hevc ? "265" : "264")}",
-                            GPUType.NV => $"{codecType}_nvenc",
-                            GPUType.RADEON => $"{codecType}_amf",
-                            GPUType.ARC => $"{codecType}_qsv",
-                            _ => $"libx{(codecType == CodecType.hevc ? "265" : "264")}",
-                        };
+                        r = await ProcessHandler.RenderCorrscopeVideo($"{tmpfoldr}/osc.yaml", $"{tmpfoldr}/oscoutp.{format}", cf.Token);
+                        string codec = ProcessHandler.GetHWAccelCodec(GPUDetector.GetGPUType(), format);
 
                         string hw = GPUDetector.GetGPUType() switch
                         {
@@ -274,20 +265,20 @@ namespace fur2mp3.modules
                             _ => null,
                         };
 
-                        if (new FileInfo($"{tmpfoldr}/oscoutp.mp4").Length >= 26214400) // efficiently check filesize
+                        if (new FileInfo($"{tmpfoldr}/oscoutp.{format}").Length >= 26214400) // efficiently check filesize
                         {
                             int tbitrate = 23 * 8192 / (int)(1.048576f *(len / 44100)) - 192;
                             await ModifyOriginalResponseAsync(m => m.Content = "Compressing video..");
-                            r = await ProcessHandler.ConvertMediaStdOut($"{tmpfoldr}/oscoutp.mp4", "mp4", hw, args: $"-c:v {codec} -b:v {tbitrate}k -b:a 192k -movflags +faststart+frag_keyframe+empty_moov+default_base_moof", ct: cf.Token);
+                            r = await ProcessHandler.ConvertMediaStdOut($"{tmpfoldr}/oscoutp.{format}", $"{format}", hw, args: $"-c:v {codec} -b:v {tbitrate}k -b:a 192k -movflags +faststart+frag_keyframe+empty_moov+default_base_moof", ct: cf.Token);
                         }
                         else
                         {
-                            r = await ProcessHandler.ConvertMediaStdOut($"{tmpfoldr}/oscoutp.mp4", "mp4", hw, args: $"-c:v {codec} -b:a 192k -movflags +faststart+frag_keyframe+empty_moov+default_base_moof", ct: cf.Token);
+                            r = await ProcessHandler.ConvertMediaStdOut($"{tmpfoldr}/oscoutp.{format}", $"{format}", hw, args: $"-c:v {codec} -b:a 192k -movflags +faststart+frag_keyframe+empty_moov+default_base_moof", ct: cf.Token);
                         }
                     }
                     else
                     {
-                        r = await ProcessHandler.ConvertMediaInternal(r.stdout, "mp3", ct: cf.Token);
+                        r = await ProcessHandler.ConvertMediaInternal(r.stdout, $"{format}", ct: cf.Token);
                     }
                     if (cf.IsCancellationRequested) return;
                 }, cf.Token);
@@ -355,7 +346,7 @@ namespace fur2mp3.modules
                         r.message = "result went over 25mb";
                         goto failure;
                     }
-                    FileAttachment[] s = [new(new MemoryStream(r.stdout), $"{Path.GetFileNameWithoutExtension(n)}.{(oscRender ? "mp4" : "mp3")}")];
+                    FileAttachment[] s = [new(new MemoryStream(r.stdout), $"{Path.GetFileNameWithoutExtension(n)}.{format}")];
                     ComponentBuilder cb = new();
                     cb.WithButton($"get {ext} file", style: ButtonStyle.Link, url: curl);
 

@@ -17,7 +17,7 @@ namespace fur2mp3.Internal {
     }
 
     public static class CorrscopeWrapper {
-        public static string CreateCorrscopeOverrides(string masterpath, CorrscopeEntry[] channels, uint x, uint y)
+        public static string CreateCorrscopeOverrides(FileFormat format, string masterpath, CorrscopeEntry[] channels, uint x, uint y)
         {
             string f = File.ReadAllText(".core/fus_osc_config.yaml");
             f += $"  width: {x}\n  height: {y}\n";
