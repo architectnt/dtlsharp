@@ -17,5 +17,5 @@
 
 # compiling
 ```
-dotnet build -c Release -o ./build
+dotnet build -c Release -o ./build --sc
 ```

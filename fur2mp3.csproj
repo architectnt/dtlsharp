@@ -12,7 +12,7 @@
   </ItemGroup>
   <ItemGroup>
     <Content Include=".core/*.*">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>  
   </ItemGroup>
 </Project>
