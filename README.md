@@ -12,6 +12,8 @@
 1. install .NET
 2. assign a token in `.core/credential.txt`
 3. install the requirements
+4. copy furnace executable to `.core/components`
+5. put AAFC (so/dll) into `.core` (the filename must be `aafc`)
 
 # compiling
 ```
