@@ -5,6 +5,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>disable</Nullable> <!-- why does that exist -->
     <AllowUnsafeBlocks>True</AllowUnsafeBlocks> <!-- AAFC and the WavUtility needs this! -->
+    <PublishSingleFile>true</PublishSingleFile> 
+    <SelfContained>true</SelfContained>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Discord.Net" Version="3.16.0" />
