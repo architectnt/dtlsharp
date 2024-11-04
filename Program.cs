@@ -63,7 +63,7 @@ namespace fur2mp3 {
                 ashd.Add(s.ShardId);
                 if (ashd.Count == client.Shards.Count) await ClientReady();
             };
-            await client.LoginAsync(TokenType.Bot, File.ReadAllText(".core/credential.txt"));
+            await client.LoginAsync(TokenType.Bot, File.ReadAllText(".core/credential.txt").Trim());
             await client.StartAsync();
             await client.SetCustomStatusAsync("LKJFLKSJALKFJLKASJ");
             await Task.Delay(-1);
