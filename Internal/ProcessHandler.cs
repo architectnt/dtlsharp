@@ -25,6 +25,7 @@ namespace fur2mp3.Internal {
         mp3,
         ogg,
         opus,
+        flac,
         mp4,
         webm,
     }
