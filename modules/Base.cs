@@ -24,36 +24,6 @@ namespace fur2mp3.modules
     [IntegrationType(ApplicationIntegrationType.UserInstall, ApplicationIntegrationType.GuildInstall)]
     public class Base : InteractionModuleBase<ShardedInteractionContext>
     {
-        [SlashCommand("ping", "pong")]
-        public async Task Ping()
-        {
-            string result = Context.Client.Latency switch
-            {
-                <= 78 => "amazing condition",
-                >= 78 and <= 100 => "great",
-                >= 100 and <= 120 => "L;JGDLKSJGFDJKSL;LV;CXLKHNVKJGBHZXJKGCVXZ",
-                _ => "WHAT IN THE WHJAHDHSJ HAPPENED BRO I COULDN'T BELIEVE IT!!1",
-            };
-            string[] pingmsg = [
-                "mega pong",
-                "network",
-                "round trippings",
-                "disc",
-                "ping pong ball",
-                "wow it works, amazyg",
-                "asdf"
-            ];
-
-
-            EmbedBuilder builder = new()
-            {
-                Title = $@"Pong! 🏓: {pingmsg[Internal.Random256.Range(0, pingmsg.Length)]}",
-                Description = $"*Quality resulted* `{result}`\n",
-                Color = API.RedColor,
-            };
-            builder.AddField($"GATEWAY:", $"```{Context.Client.Latency}ms```");
-            await Context.Interaction.RespondAsync(embed: builder.Build(), allowedMentions: AllowedMentions.None);
-        }
 
         [SlashCommand("fur2mp3", "convert chiptune to audio")]
         public async Task Fur2mp3(IAttachment attachment = null, string url = null, bool oscRender = false, uint subsong = 0, uint loopsOrDuration = 0, CodecType codecType = CodecType.h264, Resolution res = Resolution.FHD) {
