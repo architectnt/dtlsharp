@@ -21,7 +21,8 @@ namespace fur2mp3 {
         {
             RandomProviders.InitializeAll();
             if(File.ReadAllText(".core/crentential.txt") == "YOUR_TOKEN_HERE") {
-                Console.WriteLine("you need to assign your bot token in .core/crentential.txt!");
+                Console.WriteLine("you need to assign your bot token in .core/credential.txt!");
+                return;
             }
 
             client = new DiscordShardedClient(new DiscordSocketConfig()
