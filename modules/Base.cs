@@ -1,0 +1,422 @@
+﻿using Discord;
+using Discord.Interactions;
+using Discord.WebSocket;
+using System.Diagnostics;
+using fur2mp3.Internal;
+using fur2mp3.Internal.Native;
+
+namespace fur2mp3.modules
+{
+    public enum CodecType
+    {
+        h264,
+        hevc,
+    }
+
+    public enum Resolution
+    {
+        SD,
+        HD,
+        FHD
+    }
+
+    [CommandContextType(InteractionContextType.PrivateChannel, InteractionContextType.BotDm, InteractionContextType.Guild)]
+    [IntegrationType(ApplicationIntegrationType.UserInstall, ApplicationIntegrationType.GuildInstall)]
+    public class Base : InteractionModuleBase<ShardedInteractionContext>
+    {
+        [SlashCommand("ping", "pong")]
+        public async Task Ping()
+        {
+            string result = Context.Client.Latency switch
+            {
+                <= 78 => "amazing condition",
+                >= 78 and <= 100 => "great",
+                >= 100 and <= 120 => "L;JGDLKSJGFDJKSL;LV;CXLKHNVKJGBHZXJKGCVXZ",
+                _ => "WHAT IN THE WHJAHDHSJ HAPPENED BRO I COULDN'T BELIEVE IT!!1",
+            };
+            string[] pingmsg = [
+                "mega pong",
+                "network",
+                "round trippings",
+                "disc",
+                "ping pong ball",
+                "wow it works, amazyg",
+                "asdf"
+            ];
+
+
+            EmbedBuilder builder = new()
+            {
+                Title = $@"Pong! 🏓: {pingmsg[Internal.Random256.Range(0, pingmsg.Length)]}",
+                Description = $"*Quality resulted* `{result}`\n",
+                Color = API.RedColor,
+            };
+            builder.AddField($"GATEWAY:", $"```{Context.Client.Latency}ms```");
+            await Context.Interaction.RespondAsync(embed: builder.Build(), allowedMentions: AllowedMentions.None);
+        }
+
+        [SlashCommand("fur2mp3", "convert chiptune to audio")]
+        public async Task Fur2mp3(IAttachment attachment = null, string url = null, bool oscRender = false, uint subsong = 0, uint loopsOrDuration = 0, CodecType codecType = CodecType.h264, Resolution res = Resolution.FHD) {
+            List<string> 
+                furmats = [".ftm", ".dmf", ".fc13", ".fc14", ".mod", ".fc", ".0cc", ".dnm", ".eft", ".fub", ".fte", ".fur"], 
+                midi = [".mid", ".midi"], 
+                sid = [".sid"],
+                libmodplug = [".mptm", ".xm", ".s3m", ".it"],
+                libgme = [".ay", ".gbs", ".gym", ".hes", ".kss", ".nsf", ".nsfe", ".sap", ".spc", ".vgm", ".vgz"];
+
+            int i, j, len = 0;
+
+            if (attachment == null && url == null) {
+                List<string> combined = [..furmats, ..midi, ..sid, ..libmodplug, ..libgme];
+                string fm = null;
+                for(i = 0; i < combined.Count; i++)
+                    fm += $"`{combined[i]}` ";
+
+                EmbedBuilder builder = new()
+                {
+                    Title = "FUR2MP3 REWRITE",
+                    Description = $"Supported formats: {fm}\n",
+                    Color = API.RedColor,
+                };
+                await Context.Interaction.RespondAsync(embed: builder.Build(), allowedMentions: AllowedMentions.None);
+                return;
+            }
+
+            await DeferAsync();
+            Stopwatch sw = Stopwatch.StartNew();
+
+            string curl = url ?? attachment.Url;
+            if(!await WebClient.IsValidUrl(curl)){
+                await FollowupAsync($"LOL");
+                return;
+            }
+
+            byte[] dt = await WebClient.GetDataAsync(curl);
+
+            string tmpfoldr = $"{API.tmpdir}/instance_{Random256.Value}";
+            Directory.CreateDirectory(tmpfoldr);
+            string n = url != null ? Path.GetFileName(API.RemoveQueryParameters(url)) : attachment.Filename;
+            string ext = Path.GetExtension(n).ToLower();
+            ComponentResult r = new();
+            List<short[]> channels = [];
+            List<(byte[] dt, string name, float amp)> outputdt = [];
+            float[] mst = null;
+            Console.WriteLine(ext.Remove(0, 1));
+            IUserMessage t = null;
+            ComponentBuilder cns = new();
+            cns.WithButton($"cancel", "r_cancel", style: ButtonStyle.Danger);
+            IUser orgusr = Context.User;
+            Dictionary<ulong, int> externalcanceltimes = [];
+            string cff = null;
+
+            try {
+                CancellationTokenSource cf = new();
+                Task renderTask = Task.Run(async () =>
+                {
+                    Program.client.ButtonExecuted += CancelButton;
+                    if (furmats.Contains(ext))
+                    {
+                        Console.WriteLine("f");
+                        cff = oscRender ? "Seperating channels..." : "Rendering..";
+                        t = await ModifyOriginalResponseAsync(m => {
+                            m.Content = cff;
+                            m.Components = cns.Build();
+                        });
+
+                        File.WriteAllBytes($"{tmpfoldr}/{n}", dt);
+                        ulong s = Random256.Value;
+                        string what = $"{tmpfoldr}/{s}.wav";
+                        r = await ProcessHandler.Furnace($"{tmpfoldr}/{n}", what, oscRender, loopsOrDuration, subsong, cf.Token);
+                        if (!oscRender)
+                        {
+                            r = await ProcessHandler.ConvertMediaStdOut(what, "wav", ct: cf.Token); // pass to std out
+                        }
+                    }
+                    else if (libmodplug.Contains(ext))
+                    {
+                        Console.WriteLine("g");
+                        cff = "Rendering..";
+                        t = await ModifyOriginalResponseAsync(m => {
+                            m.Content = cff;
+                            m.Components = cns.Build();
+                        });
+
+                        if (oscRender)
+                        {
+                            File.WriteAllBytes($"{tmpfoldr}/{n}", dt);
+                            ulong s = Random256.Value;
+                            string what = $"{tmpfoldr}/{s}.wav";
+                            r = await ProcessHandler.Furnace($"{tmpfoldr}/{n}", what, oscRender, loopsOrDuration, subsong, cf.Token);
+                        }
+                        else r = await ProcessHandler.ConvertMediaStdOut(curl, "wav", $"-f libmodplug", ct: cf.Token);
+                    }
+                    else if (libgme.Contains(ext))
+                    {
+                        Console.WriteLine("e");
+                        cff = "Rendering..";
+                        t = await ModifyOriginalResponseAsync(m => {
+                            m.Content = cff;
+                            m.Components = cns.Build();
+                        });
+
+                        if (oscRender)
+                        {
+                            r.exitcode = 0xCFFFFFF;
+                            r.message = "oscRender not supported for these types (yet).";
+                            return;
+                        }
+                        else r = await ProcessHandler.ConvertMediaStdOut(curl, "wav", $"-f libgme", "-fs 25M", ct: cf.Token);
+                        Console.WriteLine(r.exitcode);
+                    }
+                    else if (midi.Contains(ext))
+                    {
+                        cff = "Rendering..";
+                        t = await ModifyOriginalResponseAsync(m => {
+                            m.Content = cff;
+                            m.Components = cns.Build();
+                        });
+
+                        if (oscRender)
+                        {
+                            File.WriteAllBytes($"{tmpfoldr}/{n}", dt);
+                            r = await ProcessHandler.MidiToAudio($"{tmpfoldr}/{n}", $"{tmpfoldr}/huhhhhhhh.wav", cf.Token);
+                        }
+                        else r = await ProcessHandler.MidiToAudioInternal(dt, "wav", cf.Token);
+                        cf.Token.ThrowIfCancellationRequested();
+                    }
+                    else if (sid.Contains(ext))
+                    {
+                        cff = oscRender ? "Seperating channels..." : "Rendering..";
+                        t = await ModifyOriginalResponseAsync(m => {
+                            m.Content = cff;
+                            m.Components = cns.Build();
+                        });
+
+                        File.WriteAllBytes($"{tmpfoldr}/{n}", dt);
+                        ulong s = Random256.Value;
+                        if (!oscRender)
+                        {
+                            r = await ProcessHandler.Sid2Wav(tmpfoldr, n, $"{s}.wav");
+                            r = await ProcessHandler.ConvertMediaStdOut($"{tmpfoldr}/{s}.wav", "wav", ct: cf.Token);
+                        }
+                        else
+                        {
+                            r = await ProcessHandler.Sid2Wav(tmpfoldr, n, $"{s}_01.wav", $"-u2 -u3", cf.Token);
+                            r = await ProcessHandler.Sid2Wav(tmpfoldr, n, $"{s}_02.wav", $"-u1 -u3", cf.Token);
+                            r = await ProcessHandler.Sid2Wav(tmpfoldr, n, $"{s}_02.wav", $"-u1 -u2", cf.Token);
+                        }
+                    }
+                    else
+                    {
+                        r.exitcode = 0xFFFFFFF;
+                        r.message = "not a valid format | Not defined or not implemented";
+                        return;
+                    }
+                    if (cf.IsCancellationRequested) return;
+
+                    if (oscRender)
+                    {
+                        cff = "Applying additional encoding";
+                        await ModifyOriginalResponseAsync(m => m.Content = cff);
+
+                        string[] c = Directory.GetFiles(tmpfoldr, "*.wav");
+                        int lchn = 0; // the loudest channel value;
+                        for (i = 0; i < c.Length; i++)
+                        {
+                            r = await ProcessHandler.ConvertMediaStdOut(c[i], "s16le", args: $"-ac 2 -ar 44100", ct: cf.Token);
+                            short[] samples = new short[r.stdout.Length / 2];
+                            Buffer.BlockCopy(r.stdout, 0, samples, 0, r.stdout.Length);
+                            short[] fc = LibAAFC.ToShortSamples(LibAAFC.Import(LibAAFC.Export(samples, 2, 44100), null));
+                            if (!fc.All(value => value == 0))
+                            {
+                                for (j = 0; j < fc.Length; j++)
+                                {
+                                    int mp = Math.Abs((int)fc[j]);
+                                    if (mp > lchn) lchn = mp;
+                                }
+                                float ampc = ((float)short.MaxValue / lchn) * 0.85f;
+                                Console.WriteLine(ampc);
+                                outputdt.Add((WavUtility.Export(fc, 44100, 2, 16), $"{Directory.GetCurrentDirectory()}/{tmpfoldr}/{i}.wav", ampc));
+                            }
+                            channels.Add(fc);
+                        }
+                        for (i = 0; i < channels.Count; i++)
+                        {
+                            if (len < channels[i].Length)
+                                len += channels[i].Length;
+                        }
+                        mst = new float[len];
+                        for (i = 0; i < channels.Count; i++)
+                        {
+                            for (j = 0; j < len; j++)
+                                mst[j] += j < channels[i].Length ? (channels[i][j] / (float)short.MaxValue) : 0.0f;
+                        }
+                        if (outputdt.Count == 0)
+                        {
+                            r.exitcode = 0xFFFACCC;
+                            r.message = $"all channels are silent.";
+                            return;
+                        }
+
+                        short[] outp = LibAAFC.ToShortSamples(LibAAFC.Import(LibAAFC.Export(mst, 2, 44100, nm: true), null));
+                        outputdt.Add((WavUtility.Export(outp, 44100, 2, 16), $"{Directory.GetCurrentDirectory()}/{tmpfoldr}/master.wav", 0));
+                        List<CorrscopeEntry> entries = [];
+                        for (i = 0; i < outputdt.Count; i++)
+                        {
+                            await File.WriteAllBytesAsync(outputdt[i].name, outputdt[i].dt);
+                            if (i < outputdt.Count - 1)
+                            {
+                                entries.Add(new()
+                                {
+                                    path = outputdt[i].name,
+                                    amplify = outputdt[i].amp,
+                                });
+                            }
+                        }
+
+                        (uint w, uint h) = res switch // WHY ROSLYN IM GONNA "BYTE" YOU!!11
+                        {
+                            Resolution.FHD => ((uint)1920, (uint)1080),
+                            Resolution.HD => ((uint)1280, (uint)720),
+                            Resolution.SD => ((uint)640, (uint)480),
+                            _ => ((uint)320, (uint)240)
+                        };
+
+                        cff = "Rendering oscilloscope video";
+                        await File.WriteAllTextAsync($"{tmpfoldr}/osc.yaml", CorrscopeWrapper.CreateCorrscopeOverrides($"{Directory.GetCurrentDirectory()}/{tmpfoldr}/master.wav", [.. entries], w, h), cf.Token);
+                        await ModifyOriginalResponseAsync(m => m.Content = cff);
+
+                        r = await ProcessHandler.RenderCorrscopeVideo($"{tmpfoldr}/osc.yaml", $"{tmpfoldr}/oscoutp.mp4", cf.Token);
+                        string codec = GPUDetector.GetGPUType() switch
+                        {
+                            GPUType.NONE => $"libx{(codecType == CodecType.hevc ? "265" : "264")}",
+                            GPUType.NV => $"{codecType}_nvenc",
+                            GPUType.RADEON => $"{codecType}_amf",
+                            GPUType.ARC => $"{codecType}_qsv",
+                            _ => $"libx{(codecType == CodecType.hevc ? "265" : "264")}",
+                        };
+
+                        string hw = GPUDetector.GetGPUType() switch
+                        {
+                            GPUType.NONE => null,
+                            GPUType.NV => $"-hwaccel cuda",
+                            GPUType.RADEON => $"-hwaccel vulkan",
+                            GPUType.ARC => $"-hwaccel qsv",
+                            _ => null,
+                        };
+
+                        if (new FileInfo($"{tmpfoldr}/oscoutp.mp4").Length >= 26214400) // efficiently check filesize
+                        {
+                            int tbitrate = 23 * 8192 / (int)(1.048576f *(len / 44100)) - 192;
+                            await ModifyOriginalResponseAsync(m => m.Content = "Compressing video..");
+                            r = await ProcessHandler.ConvertMediaStdOut($"{tmpfoldr}/oscoutp.mp4", "mp4", hw, args: $"-c:v {codec} -b:v {tbitrate}k -b:a 192k -movflags +faststart+frag_keyframe+empty_moov+default_base_moof", ct: cf.Token);
+                        }
+                        else
+                        {
+                            r = await ProcessHandler.ConvertMediaStdOut($"{tmpfoldr}/oscoutp.mp4", "mp4", hw, args: $"-c:v {codec} -b:a 192k -movflags +faststart+frag_keyframe+empty_moov+default_base_moof", ct: cf.Token);
+                        }
+                    }
+                    else
+                    {
+                        r = await ProcessHandler.ConvertMediaInternal(r.stdout, "mp3", ct: cf.Token);
+                    }
+                    if (cf.IsCancellationRequested) return;
+                }, cf.Token);
+                
+                async Task CancelButton(SocketMessageComponent btn)
+                {
+                    if (btn.Message.Id != t.Id) return;
+                    if(btn.User.Id != orgusr.Id) {
+                        if(externalcanceltimes.ContainsKey(btn.User.Id)) {
+                            externalcanceltimes[btn.User.Id]++;
+                        }
+                        else {
+                            externalcanceltimes.Add(btn.User.Id, 1); 
+                            cff = t.Content;
+                        }
+                        string cft = cff;
+                        for(int i = 0; i < externalcanceltimes.Count; i++){
+                            IUser s = Program.client.GetUser(externalcanceltimes.ElementAt(i).Key);
+                            int cfgb = externalcanceltimes.ElementAt(i).Value;
+                            cft += $"\n-# {(s == null ? "unknown" : s.Mention)} tried to cancel {orgusr.Mention}'s render 🪑";
+                            if(cfgb > 1) cft += $" **{cfgb}** times!"; 
+                        }
+
+                        t = await Context.Interaction.ModifyOriginalResponseAsync(m => {
+                            m.Content = cft;
+                        });
+                        return;
+                    }
+                    if (btn.Data.CustomId == "r_cancel")
+                    {
+                        cf.Cancel();
+                        t = await Context.Interaction.ModifyOriginalResponseAsync(m => {
+                            m.Content = "canceled";
+                            m.Components = null;
+                        });
+                    }
+                }
+
+                try {
+                    await renderTask;
+                } catch (OperationCanceledException) {
+                    Console.WriteLine("task canceled");
+                    return;
+                }
+                goto finalize;
+            }
+            catch (Exception ex) {
+                Console.Write(ex);
+
+                r.exitcode = 0xFFAA;
+                r.message = $"rendering failed. ({ex.Message})";
+                goto failure;
+            }
+
+            finalize: {
+                try
+                {
+                    sw.Stop();
+                    cff = "Finalizing";
+                    await ModifyOriginalResponseAsync(m => m.Content = cff);
+                    if (r.exitcode != 0) goto failure;
+                    if (r.stdout.LongLength > 26214400)
+                    {
+                        r.exitcode = 0xAFD013F;
+                        r.message = "result went over 25mb";
+                        goto failure;
+                    }
+                    FileAttachment[] s = [new(new MemoryStream(r.stdout), $"{Path.GetFileNameWithoutExtension(n)}.{(oscRender ? "mp4" : "mp3")}")];
+                    ComponentBuilder cb = new();
+                    cb.WithButton($"get {ext} file", style: ButtonStyle.Link, url: curl);
+
+                    await ModifyOriginalResponseAsync(m =>
+                    {
+                        m.Content = $"{Context.User.Mention}'s render finished!\n***{n}***\n-# **time taken:** *{sw.ElapsedMilliseconds / 1000:0.##}s*";
+                        m.Attachments = s;
+                        m.Components = cb.Build();
+                    });
+
+                    Directory.Delete(tmpfoldr, true);
+                    return;
+                } catch(Exception ex) {
+                    r.exitcode = 0xEEFFAA;
+                    r.message = $"failed finalizing: {ex}";
+                    goto failure;
+                }
+            }
+
+
+            failure: {
+                EmbedBuilder e = new()
+                {
+                    Color = API.RedColor,
+                    Title = $"Error processing result",
+                    Description = $"```ansi\n\u001b[2;31m{r.exitcode} \u001b[2;30m| \u001b[2;37m{r.message}\u001b[0m```\n"
+                };
+                await Context.Interaction.FollowupAsync(embed: e.Build());
+                return;
+            }
+        }
+    }
+}

@@ -1,0 +1,7 @@
+linbuild
+Properties
+obj
+bin
+*.csproj.user
+.vs
+build
