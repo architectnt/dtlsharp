@@ -1,4 +1,8 @@
-﻿namespace fur2mp3.Internal {
+﻿/*
+    This is a part of fur2mp3 Rewrite and is licenced under MIT.
+*/
+
+namespace fur2mp3.Internal {
     public static class WebClient {
         readonly static HttpClient cl = new();
         public async static Task<byte[]> GetDataAsync(string url)

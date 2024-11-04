@@ -1,4 +1,8 @@
-﻿using System.Diagnostics;
+﻿/*
+    This is a part of fur2mp3 Rewrite and is licenced under MIT.
+*/
+
+using System.Diagnostics;
 
 namespace fur2mp3.Internal {
     public enum GPUType {

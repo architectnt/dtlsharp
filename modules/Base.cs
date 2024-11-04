@@ -1,4 +1,8 @@
-﻿using Discord;
+﻿/*
+    This is a part of fur2mp3 Rewrite and is licenced under MIT.
+*/
+
+using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
 using System.Diagnostics;
@@ -71,7 +75,6 @@ namespace fur2mp3.modules
             List<short[]> channels = [];
             List<(byte[] dt, string name, float amp)> outputdt = [];
             float[] mst = null;
-            Console.WriteLine(ext.Remove(0, 1));
             IUserMessage t = null;
             ComponentBuilder cns = new();
             cns.WithButton($"cancel", "r_cancel", style: ButtonStyle.Danger);
@@ -86,7 +89,6 @@ namespace fur2mp3.modules
                     Program.client.ButtonExecuted += CancelButton;
                     if (furmats.Contains(ext))
                     {
-                        Console.WriteLine("f");
                         cff = oscRender ? "Seperating channels..." : "Rendering..";
                         t = await ModifyOriginalResponseAsync(m => {
                             m.Content = cff;
@@ -104,7 +106,6 @@ namespace fur2mp3.modules
                     }
                     else if (libmodplug.Contains(ext))
                     {
-                        Console.WriteLine("g");
                         cff = "Rendering..";
                         t = await ModifyOriginalResponseAsync(m => {
                             m.Content = cff;
@@ -122,7 +123,6 @@ namespace fur2mp3.modules
                     }
                     else if (libgme.Contains(ext))
                     {
-                        Console.WriteLine("e");
                         cff = "Rendering..";
                         t = await ModifyOriginalResponseAsync(m => {
                             m.Content = cff;
@@ -205,7 +205,6 @@ namespace fur2mp3.modules
                                     if (mp > lchn) lchn = mp;
                                 }
                                 float ampc = ((float)short.MaxValue / lchn) * 0.85f;
-                                Console.WriteLine(ampc);
                                 outputdt.Add((WavUtility.Export(fc, 44100, 2, 16), $"{Directory.GetCurrentDirectory()}/{tmpfoldr}/{i}.wav", ampc));
                             }
                             channels.Add(fc);

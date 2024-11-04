@@ -1,4 +1,8 @@
-﻿using Discord.Commands;
+﻿/*
+    This is a part of fur2mp3 Rewrite and is licenced under MIT.
+*/
+
+using Discord.Commands;
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
