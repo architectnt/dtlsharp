@@ -188,11 +188,11 @@ namespace fur2mp3.module {
                         cff = "Applying additional encoding";
                         await ModifyOriginalResponseAsync(m => m.Content = cff);
 
-                        string[] c = Directory.GetFiles(tmpfoldr, "*.wav");
+                        FileInfo[] c = [..new DirectoryInfo(tmpfoldr).GetFiles("*.wav").OrderBy(f => f.CreationTimeUtc)];
                         int lchn = 0; // the loudest channel value;
                         for (i = 0; i < c.Length; i++)
                         {
-                            r = await ProcessHandler.ConvertMediaStdOut(c[i], "s16le", args: $"-ac 2 -ar 44100", ct: cf.Token);
+                            r = await ProcessHandler.ConvertMediaStdOut(c[i].FullName, "s16le", args: $"-ac 2 -ar 44100", ct: cf.Token);
                             short[] samples = new short[r.stdout.Length / 2];
                             Buffer.BlockCopy(r.stdout, 0, samples, 0, r.stdout.Length);
                             if (!samples.All(value => value == 0))
