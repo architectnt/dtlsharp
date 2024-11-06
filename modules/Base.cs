@@ -27,6 +27,7 @@ namespace fur2mp3.module {
     public class Base : InteractionModuleBase<ShardedInteractionContext>
     {
 
+
         [SlashCommand("fur2mp3", "convert chiptune to audio")]
         public async Task Fur2mp3(IAttachment attachment = null, string url = null, FileFormat format = FileFormat.mp3, uint subsong = 0, uint loopsOrDuration = 0, CodecType codecType = CodecType.h264, Resolution res = Resolution.FHD) {
             List<string> 
@@ -58,16 +59,22 @@ namespace fur2mp3.module {
             Stopwatch sw = Stopwatch.StartNew();
 
             string curl = url ?? attachment.Url;
+            string n = url != null ? Path.GetFileName(API.RemoveQueryParameters(url)) : attachment.Filename;
+
             if(!await WebClient.IsValidUrl(curl)){
                 await FollowupAsync($"LOL");
                 return;
             }
 
             byte[] dt = await WebClient.GetDataAsync(curl);
+            ulong hash = 0; // not bothered using sha
+            for(i = 0; i < dt.Length; i++){
+                hash ^= dt[i];
+            }
+            hash += loopsOrDuration + subsong;
 
             string tmpfoldr = $"{API.tmpdir}/instance_{Random256.Value}";
             Directory.CreateDirectory(tmpfoldr);
-            string n = url != null ? Path.GetFileName(API.RemoveQueryParameters(url)) : attachment.Filename;
             string ext = Path.GetExtension(n).ToLower();
             ComponentResult r = new();
             List<short[]> channels = [];
@@ -99,156 +106,159 @@ namespace fur2mp3.module {
                 {
                     Program.client.ButtonExecuted += CancelButton;
                     processing = true;
-                    if (furmats.Contains(ext))
-                    {
-                        cff = oscRender ? "Seperating channels..." : "Rendering..";
-                        t = await ModifyOriginalResponseAsync(m => {
-                            m.Content = cff;
-                            m.Components = cns.Build();
-                        });
+                    if(oscRender && !API.modulecache.ContainsKey(hash)) {
+                        if (furmats.Contains(ext)) {
+                            cff = oscRender ? "Seperating channels..." : "Rendering..";
+                            t = await ModifyOriginalResponseAsync(m => {
+                                m.Content = cff;
+                                m.Components = cns.Build();
+                            });
 
-                        File.WriteAllBytes($"{tmpfoldr}/{n}", dt);
-                        ulong s = Random256.Value;
-                        string what = $"{tmpfoldr}/{s}.wav";
-                        r = await ProcessHandler.Furnace($"{tmpfoldr}/{n}", what, oscRender, loopsOrDuration, subsong, cf.Token);
-                        if (!oscRender)
-                        {
-                            r = await ProcessHandler.ConvertMediaStdOut(what, "wav", ct: cf.Token); // pass to std out
-                        }
-                    }
-                    else if (libmodplug.Contains(ext))
-                    {
-                        cff = "Rendering..";
-                        t = await ModifyOriginalResponseAsync(m => {
-                            m.Content = cff;
-                            m.Components = cns.Build();
-                        });
-
-                        if (oscRender)
-                        {
                             File.WriteAllBytes($"{tmpfoldr}/{n}", dt);
                             ulong s = Random256.Value;
                             string what = $"{tmpfoldr}/{s}.wav";
                             r = await ProcessHandler.Furnace($"{tmpfoldr}/{n}", what, oscRender, loopsOrDuration, subsong, cf.Token);
-                        }
-                        else r = await ProcessHandler.ConvertMediaStdOut(curl, "wav", $"-f libmodplug", ct: cf.Token);
-                    }
-                    else if (libgme.Contains(ext))
-                    {
-                        cff = "Rendering..";
-                        t = await ModifyOriginalResponseAsync(m => {
-                            m.Content = cff;
-                            m.Components = cns.Build();
-                        });
+                            if (!oscRender)
+                            {
+                                r = await ProcessHandler.ConvertMediaStdOut(what, "wav", ct: cf.Token); // pass to std out
+                            }
+                        } else if (libmodplug.Contains(ext)) {
+                            cff = "Rendering..";
+                            t = await ModifyOriginalResponseAsync(m => {
+                                m.Content = cff;
+                                m.Components = cns.Build();
+                            });
 
-                        if (oscRender)
+                            if (oscRender)
+                            {
+                                File.WriteAllBytes($"{tmpfoldr}/{n}", dt);
+                                ulong s = Random256.Value;
+                                string what = $"{tmpfoldr}/{s}.wav";
+                                r = await ProcessHandler.Furnace($"{tmpfoldr}/{n}", what, oscRender, loopsOrDuration, subsong, cf.Token);
+                            }
+                            else r = await ProcessHandler.ConvertMediaStdOut(curl, "wav", $"-f libmodplug", ct: cf.Token);
+                        }
+                        else if (libgme.Contains(ext))
                         {
-                            r.exitcode = 0xCFFFFFF;
-                            r.message = "oscRender not supported for these types (yet).";
+                            cff = "Rendering..";
+                            t = await ModifyOriginalResponseAsync(m => {
+                                m.Content = cff;
+                                m.Components = cns.Build();
+                            });
+
+                            if (oscRender)
+                            {
+                                r.exitcode = 0xCFFFFFF;
+                                r.message = "oscRender not supported for these types (yet).";
+                                return;
+                            }
+                            else r = await ProcessHandler.ConvertMediaStdOut(curl, "wav", $"-f libgme", "-fs 25M", ct: cf.Token);
+                            Console.WriteLine(r.exitcode);
+                        }
+                        else if (midi.Contains(ext))
+                        {
+                            cff = "Rendering..";
+                            t = await ModifyOriginalResponseAsync(m => {
+                                m.Content = cff;
+                                m.Components = cns.Build();
+                            });
+
+                            if (oscRender)
+                            {
+                                File.WriteAllBytes($"{tmpfoldr}/{n}", dt);
+                                r = await ProcessHandler.MidiToAudio($"{tmpfoldr}/{n}", $"{tmpfoldr}/huhhhhhhh.wav", cf.Token);
+                            }
+                            else r = await ProcessHandler.MidiToAudioInternal(dt, "wav", cf.Token);
+                            cf.Token.ThrowIfCancellationRequested();
+                        }
+                        else if (sid.Contains(ext))
+                        {
+                            cff = oscRender ? "Seperating channels..." : "Rendering..";
+                            t = await ModifyOriginalResponseAsync(m => {
+                                m.Content = cff;
+                                m.Components = cns.Build();
+                            });
+
+                            File.WriteAllBytes($"{tmpfoldr}/{n}", dt);
+                            ulong s = Random256.Value;
+                            if (!oscRender)
+                            {
+                                r = await ProcessHandler.Sid2Wav(tmpfoldr, n, $"{s}.wav");
+                                r = await ProcessHandler.ConvertMediaStdOut($"{tmpfoldr}/{s}.wav", "wav", ct: cf.Token);
+                            }
+                            else
+                            {
+                                r = await ProcessHandler.Sid2Wav(tmpfoldr, n, $"{s}_01.wav", $"-u2 -u3", cf.Token);
+                                r = await ProcessHandler.Sid2Wav(tmpfoldr, n, $"{s}_02.wav", $"-u1 -u3", cf.Token);
+                                r = await ProcessHandler.Sid2Wav(tmpfoldr, n, $"{s}_02.wav", $"-u1 -u2", cf.Token);
+                            }
+                            r.exitcode = 0xFFFFFFF;
+                            r.message = "not a valid format | Not defined or not implemented";
                             return;
                         }
-                        else r = await ProcessHandler.ConvertMediaStdOut(curl, "wav", $"-f libgme", "-fs 25M", ct: cf.Token);
-                        Console.WriteLine(r.exitcode);
+                        if (cf.IsCancellationRequested) return;
                     }
-                    else if (midi.Contains(ext))
-                    {
-                        cff = "Rendering..";
-                        t = await ModifyOriginalResponseAsync(m => {
-                            m.Content = cff;
-                            m.Components = cns.Build();
-                        });
-
-                        if (oscRender)
-                        {
-                            File.WriteAllBytes($"{tmpfoldr}/{n}", dt);
-                            r = await ProcessHandler.MidiToAudio($"{tmpfoldr}/{n}", $"{tmpfoldr}/huhhhhhhh.wav", cf.Token);
-                        }
-                        else r = await ProcessHandler.MidiToAudioInternal(dt, "wav", cf.Token);
-                        cf.Token.ThrowIfCancellationRequested();
-                    }
-                    else if (sid.Contains(ext))
-                    {
-                        cff = oscRender ? "Seperating channels..." : "Rendering..";
-                        t = await ModifyOriginalResponseAsync(m => {
-                            m.Content = cff;
-                            m.Components = cns.Build();
-                        });
-
-                        File.WriteAllBytes($"{tmpfoldr}/{n}", dt);
-                        ulong s = Random256.Value;
-                        if (!oscRender)
-                        {
-                            r = await ProcessHandler.Sid2Wav(tmpfoldr, n, $"{s}.wav");
-                            r = await ProcessHandler.ConvertMediaStdOut($"{tmpfoldr}/{s}.wav", "wav", ct: cf.Token);
-                        }
-                        else
-                        {
-                            r = await ProcessHandler.Sid2Wav(tmpfoldr, n, $"{s}_01.wav", $"-u2 -u3", cf.Token);
-                            r = await ProcessHandler.Sid2Wav(tmpfoldr, n, $"{s}_02.wav", $"-u1 -u3", cf.Token);
-                            r = await ProcessHandler.Sid2Wav(tmpfoldr, n, $"{s}_02.wav", $"-u1 -u2", cf.Token);
-                        }
-                    }
-                    else
-                    {
-                        r.exitcode = 0xFFFFFFF;
-                        r.message = "not a valid format | Not defined or not implemented";
-                        return;
-                    }
-                    if (cf.IsCancellationRequested) return;
 
                     if (oscRender)
                     {
-                        cff = "Applying additional encoding";
-                        await ModifyOriginalResponseAsync(m => m.Content = cff);
+                        if(!API.modulecache.TryGetValue(hash, out List<(byte[] dt, string name, float amp)> val)) {
+                            cff = "Applying additional encoding";
+                            await ModifyOriginalResponseAsync(m => m.Content = cff);
 
-                        FileInfo[] c = [..new DirectoryInfo(tmpfoldr).GetFiles("*.wav").OrderBy(f => f.CreationTimeUtc)];
-                        int lchn = 0; // the loudest channel value;
-                        for (i = 0; i < c.Length; i++)
-                        {
-                            r = await ProcessHandler.ConvertMediaStdOut(c[i].FullName, "s16le", args: $"-ac 2 -ar 44100", ct: cf.Token);
-                            short[] samples = new short[r.stdout.Length / 2];
-                            Buffer.BlockCopy(r.stdout, 0, samples, 0, r.stdout.Length);
-                            if (!samples.All(value => value == 0))
+                            FileInfo[] c = [..new DirectoryInfo(tmpfoldr).GetFiles("*.wav").OrderBy(f => f.CreationTimeUtc)];
+                            int lchn = 0; // the loudest channel value;
+                            for (i = 0; i < c.Length; i++)
                             {
-                                for (j = 0; j < samples.Length; j++)
+                                r = await ProcessHandler.ConvertMediaStdOut(c[i].FullName, "s16le", args: $"-ac 2 -ar 44100", ct: cf.Token);
+                                short[] samples = new short[r.stdout.Length / 2];
+                                Buffer.BlockCopy(r.stdout, 0, samples, 0, r.stdout.Length);
+                                if (!samples.All(value => value == 0))
                                 {
-                                    int mp = Math.Abs((int)samples[j]);
-                                    if (mp > lchn) lchn = mp;
+                                    for (j = 0; j < samples.Length; j++)
+                                    {
+                                        int mp = Math.Abs((int)samples[j]);
+                                        if (mp > lchn) lchn = mp;
+                                    }
+                                    float ampc = ((float)short.MaxValue / lchn) * 0.85f;
+                                    outputdt.Add((WavUtility.Export(samples, 44100, 2, 16), $"{i}.wav", ampc));
                                 }
-                                float ampc = ((float)short.MaxValue / lchn) * 0.85f;
-                                outputdt.Add((WavUtility.Export(samples, 44100, 2, 16), $"{Directory.GetCurrentDirectory()}/{tmpfoldr}/{i}.wav", ampc));
+                                channels.Add(samples);
                             }
-                            channels.Add(samples);
-                        }
-                        for (i = 0; i < channels.Count; i++)
-                        {
-                            if (len < channels[i].Length)
-                                len += channels[i].Length;
-                        }
-                        mst = new float[len];
-                        for (i = 0; i < channels.Count; i++)
-                        {
-                            for (j = 0; j < len; j++)
-                                mst[j] += j < channels[i].Length ? (channels[i][j] / (float)short.MaxValue) : 0.0f;
-                        }
-                        if (outputdt.Count == 0)
-                        {
-                            r.exitcode = 0xFFFACCC;
-                            r.message = $"all channels are silent.";
-                            return;
-                        }
+                            for (i = 0; i < channels.Count; i++)
+                            {
+                                if (len < channels[i].Length)
+                                    len += channels[i].Length;
+                            }
+                            mst = new float[len];
+                            for (i = 0; i < channels.Count; i++)
+                            {
+                                for (j = 0; j < len; j++)
+                                    mst[j] += j < channels[i].Length ? (channels[i][j] / (float)short.MaxValue) : 0.0f;
+                            }
+                            if (outputdt.Count == 0)
+                            {
+                                r.exitcode = 0xFFFACCC;
+                                r.message = $"all channels are silent.";
+                                return;
+                            }
 
-                        short[] outp = LibAAFC.ToShortSamples(LibAAFC.Import(LibAAFC.Export(mst, 2, 44100, nm: true), null));
-                        outputdt.Add((WavUtility.Export(outp, 44100, 2, 16), $"{Directory.GetCurrentDirectory()}/{tmpfoldr}/master.wav", 0));
+                            short[] outp = LibAAFC.ToShortSamples(LibAAFC.Import(LibAAFC.Export(mst, 2, 44100, nm: true), null));
+                            outputdt.Add((WavUtility.Export(outp, 44100, 2, 16), "master.wav", 0));
+                            
+                            API.modulecache[hash] = outputdt;
+                        } else{
+                            outputdt = val;
+                        }
                         List<CorrscopeEntry> entries = [];
                         for (i = 0; i < outputdt.Count; i++)
                         {
-                            await File.WriteAllBytesAsync(outputdt[i].name, outputdt[i].dt);
+                            string p = $"{Directory.GetCurrentDirectory()}/{tmpfoldr}/{outputdt[i].name}";
+                            await File.WriteAllBytesAsync(p, outputdt[i].dt);
                             if (i < outputdt.Count - 1)
                             {
                                 entries.Add(new()
                                 {
-                                    path = outputdt[i].name,
+                                    path = p,
                                     amplify = outputdt[i].amp,
                                 });
                             }
@@ -354,6 +364,7 @@ namespace fur2mp3.module {
                 goto finalize;
             }
             catch (Exception ex) {
+                processing = false;
                 Console.Write(ex);
 
                 r.exitcode = 0xFFAA;
@@ -397,6 +408,7 @@ namespace fur2mp3.module {
 
 
             failure: {
+                processing = false;
                 EmbedBuilder e = new()
                 {
                     Color = API.RedColor,

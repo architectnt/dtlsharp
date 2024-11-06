@@ -11,6 +11,8 @@ using System.Threading.Tasks;
 
 namespace fur2mp3 {
     public static class API {
+        public static Dictionary<ulong, List<(byte[] dt, string name, float amp)>> modulecache = []; // okay
+
         public const string tmpdir = ".tmp";
 
         public static Color RedColor {
