@@ -17,6 +17,14 @@ namespace fur2mp3 {
             get => new(255, 20, 75);
         }
 
+        public static string FriendlyTimeFormat(TimeSpan elapsed) {
+            if (elapsed.TotalHours >= 1)
+                return $"{(int)elapsed.TotalHours}h{elapsed.Minutes}m{elapsed.Seconds}s";
+            else if (elapsed.TotalMinutes >= 1)
+                return $"{(int)elapsed.TotalMinutes}m{elapsed.Seconds}s";
+            else return $"{elapsed.Seconds}.{elapsed.Milliseconds}s";
+        }
+
         public static string RemoveQueryParameters(string url) {
             return url.Contains("cdn.discord") ? url.Split('?')[0] : url;
         }

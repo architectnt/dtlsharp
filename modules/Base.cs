@@ -79,13 +79,26 @@ namespace fur2mp3.module {
             IUser orgusr = Context.User;
             Dictionary<ulong, int> externalcanceltimes = [];
             string cff = null;
-            bool oscRender = format == FileFormat.mp4 || format == FileFormat.webm;
+            bool oscRender = format == FileFormat.mp4 || format == FileFormat.webm,
+            processing = false;
+
+            Thread frontend = new(async()=>{ // just so that it DOESN'T THROW AN ERRO
+                await Task.Delay(60 * 1000);
+                if(processing) await ModifyOriginalResponseAsync(m => m.Content = $"{cff}\n-# This will take a while...");
+                while(processing){
+                    await Task.Delay(30000);
+                    if (processing) await ModifyOriginalResponseAsync(m => m.Content = $"{cff}\n-# {API.FriendlyTimeFormat(sw.Elapsed)} elapsed");
+                    else break;
+                }
+            });
+            frontend.Start();
 
             try {
                 CancellationTokenSource cf = new();
                 Task renderTask = Task.Run(async () =>
                 {
                     Program.client.ButtonExecuted += CancelButton;
+                    processing = true;
                     if (furmats.Contains(ext))
                     {
                         cff = oscRender ? "Seperating channels..." : "Rendering..";
@@ -348,6 +361,7 @@ namespace fur2mp3.module {
                 try
                 {
                     sw.Stop();
+                    processing = false;
                     cff = "Finalizing";
                     await ModifyOriginalResponseAsync(m => m.Content = cff);
                     if (r.exitcode != 0) goto failure;
@@ -363,7 +377,7 @@ namespace fur2mp3.module {
 
                     await ModifyOriginalResponseAsync(m =>
                     {
-                        m.Content = $"{Context.User.Mention}'s render finished!\n***{n}***\n-# **time taken:** *{sw.ElapsedMilliseconds / 1000:0.##}s*";
+                        m.Content = $"{Context.User.Mention}'s render finished!\n***{n}***\n-# **time taken:** *{API.FriendlyTimeFormat(sw.Elapsed)}*";
                         m.Attachments = s;
                         m.Components = cb.Build();
                     });
