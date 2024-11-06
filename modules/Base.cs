@@ -288,13 +288,17 @@ namespace fur2mp3.module {
                         if (new FileInfo($"{tmpfoldr}/oscoutp.{format}").Length >= 26214400) // efficiently check filesize
                         {
                             int tbitrate = 23 * 8192 / (int)(1.048576f *(len / 44100)) - 192;
-                            await ModifyOriginalResponseAsync(m => m.Content = "Compressing video..");
+
+                            cff = "Compressing video..";
+                            await ModifyOriginalResponseAsync(m => m.Content = cff);
                             r = await ProcessHandler.ConvertMediaStdOut($"{tmpfoldr}/oscoutp.{format}", $"{format}", hw, args: $"-c:v {codec} -b:v {tbitrate}k -b:a 192k {(format == FileFormat.mp4 
                                 ? "-movflags +faststart+frag_keyframe+empty_moov+default_base_moof" 
                                 : null)}", ct: cf.Token);
                         }
                         else
                         {
+                            cff = "fragmenting..";
+                            await ModifyOriginalResponseAsync(m => m.Content = cff);
                             r = await ProcessHandler.ConvertMediaStdOut($"{tmpfoldr}/oscoutp.{format}", $"{format}", hw, args: $"-c:v {codec} -b:a 192k {(format == FileFormat.mp4 
                                 ? "-movflags +faststart+frag_keyframe+empty_moov+default_base_moof" 
                                 : null)}", ct: cf.Token);
