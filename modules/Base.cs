@@ -153,7 +153,6 @@ namespace fur2mp3.module {
                                 return;
                             }
                             else r = await ProcessHandler.ConvertMediaStdOut(curl, "wav", $"-f libgme", "-fs 25M", ct: cf.Token);
-                            Console.WriteLine(r.exitcode);
                         }
                         else if (midi.Contains(ext))
                         {
@@ -192,8 +191,11 @@ namespace fur2mp3.module {
                                 r = await ProcessHandler.Sid2Wav(tmpfoldr, n, $"{s}_02.wav", $"-u1 -u3", cf.Token);
                                 r = await ProcessHandler.Sid2Wav(tmpfoldr, n, $"{s}_02.wav", $"-u1 -u2", cf.Token);
                             }
+                        }
+                        else
+                        {
                             r.exitcode = 0xFFFFFFF;
-                            r.message = "not a valid format | Not defined or not implemented";
+                            r.message = $"not a valid format | Not defined or not implemented ({ext})";
                             return;
                         }
                         if (cf.IsCancellationRequested) return;
