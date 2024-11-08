@@ -292,6 +292,7 @@ namespace fur2mp3.module {
                             GPUType.NV => $"-hwaccel cuda",
                             GPUType.RADEON => $"-hwaccel vulkan",
                             GPUType.ARC => $"-hwaccel qsv",
+                            GPUType.APPLESILICON => "-hwaccel videotoolbox",
                             _ => null,
                         };
 

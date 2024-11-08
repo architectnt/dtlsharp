@@ -13,6 +13,7 @@ namespace fur2mp3.Internal {
         MALI,
         ADRENO,
         VIDEOCORE,
+        APPLESILICON,
     }
     
     public class GPUDetector {
@@ -37,6 +38,8 @@ namespace fur2mp3.Internal {
                 return GPUType.MALI;
             else if (gpuInfo.Contains("Adreno"))
                 return GPUType.ADRENO;
+            else if (gpuInfo.Contains("Apple M"))
+                return GPUType.APPLESILICON;
             else if (gpuInfo.Contains("VideoCore") || gpuInfo.Contains("Broadcom"))
                 return GPUType.VIDEOCORE;
             else

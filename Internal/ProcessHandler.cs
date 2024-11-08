@@ -38,6 +38,7 @@ namespace fur2mp3.Internal {
             (GPUType.NV, FileFormat.mp4) => "h264_nvenc",
             (GPUType.RADEON, FileFormat.mp4) => "h264_amf",
             (GPUType.ARC, FileFormat.mp4) => "h264_qsv",
+            (GPUType.APPLESILICON, FileFormat.mp4) => "h264_videotoolbox",
             (GPUType.NONE, FileFormat.webm) => "libvpx",
             (GPUType.NV, FileFormat.webm) => "libvpx", // GOD DAMN IT
             (GPUType.RADEON, FileFormat.webm) => "libvpx", // gotcha: may not support vp9
