@@ -106,7 +106,7 @@ namespace fur2mp3.module {
                 {
                     Program.client.ButtonExecuted += CancelButton;
                     processing = true;
-                    if(oscRender && !API.modulecache.ContainsKey(hash)) {
+                    if(!API.modulecache.ContainsKey(hash)) {
                         if (furmats.Contains(ext)) {
                             cff = oscRender ? "Seperating channels..." : "Rendering..";
                             t = await ModifyOriginalResponseAsync(m => {
@@ -302,7 +302,7 @@ namespace fur2mp3.module {
 
                             cff = "Compressing video..";
                             await ModifyOriginalResponseAsync(m => m.Content = cff);
-                            r = await ProcessHandler.ConvertMediaStdOut($"{tmpfoldr}/oscoutp.{format}", $"{format}", hw, args: $"-c:v {codec} -b:v {tbitrate}k -b:a 192k {(format == FileFormat.mp4 
+                            r = await ProcessHandler.ConvertMediaStdOut($"{tmpfoldr}/oscoutp.{format}", $"{format}", hw, args: $"-c:v {codec} -b:v {tbitrate}k -maxrate {tbitrate}k -bufsize {tbitrate * 2}k -b:a 192k {(format == FileFormat.mp4 
                                 ? "-movflags +faststart+frag_keyframe+empty_moov+default_base_moof" 
                                 : null)}", ct: cf.Token);
                         }
