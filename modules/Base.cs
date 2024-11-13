@@ -287,8 +287,6 @@ namespace fur2mp3.module {
                             r.message = $"osc rendering failed. ({r.message})";
                             return;
                         }
-                        Console.WriteLine(r.message);
-
 
                         string codec = ProcessHandler.GetHWAccelCodec(GPUDetector.GetGPUType(), format);
 

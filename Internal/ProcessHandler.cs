@@ -330,7 +330,6 @@ namespace fur2mp3.Internal {
                 WorkingDirectory = directory,
             });
             await fpc.WaitForExitAsync(ct).ConfigureAwait(false);
-            Console.WriteLine($"{innerargs} -w\"{o}\" \"{input}\"");
             return new()
             {
                 exitcode = fpc.ExitCode,
@@ -347,7 +346,6 @@ namespace fur2mp3.Internal {
                 WorkingDirectory = outputpath,
             });
             await fpc.WaitForExitAsync(ct).ConfigureAwait(false);
-            Console.WriteLine($"\"{path}\"{(dontsplit ? " --no-parallel" : null)}");
             return new()
             {
                 exitcode = fpc.ExitCode,
