@@ -337,6 +337,23 @@ namespace fur2mp3.Internal {
             };
         }
 
+        public static async Task<ComponentResult> VGMSplit(string path, string outputpath, bool dontsplit = true, CancellationToken ct = default)
+        {
+            using Process fpc = Process.Start(new ProcessStartInfo()
+            {
+                FileName = "vgmsplit",
+                Arguments = $"\"{path}\"{(dontsplit ? " --no-parallel" : null)}",
+                UseShellExecute = false,
+                WorkingDirectory = outputpath,
+            });
+            await fpc.WaitForExitAsync(ct).ConfigureAwait(false);
+            Console.WriteLine($"\"{path}\"{(dontsplit ? " --no-parallel" : null)}");
+            return new()
+            {
+                exitcode = fpc.ExitCode,
+            };
+        }
+
         public static async Task<ComponentResult> MidiToAudio(string input, string path, CancellationToken ct = default)
         {
             using Process fpc = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)

@@ -146,13 +146,17 @@ namespace fur2mp3.module {
                                 m.Components = cns.Build();
                             });
 
-                            if (oscRender)
+                            File.WriteAllBytes($"{tmpfoldr}/{n}", dt);
+                            ulong s = Random256.Value;
+                            r = await ProcessHandler.VGMSplit(n, tmpfoldr, !oscRender, cf.Token);
+                            if (!oscRender)
                             {
-                                r.exitcode = 0xCFFFFFF;
-                                r.message = "oscRender not supported for these types (yet).";
-                                return;
+                                r = await ProcessHandler.ConvertMediaStdOut($"{tmpfoldr}/{Path.GetFileNameWithoutExtension(n)}.wav", "wav", ct: cf.Token); // pass to std out
                             }
-                            else r = await ProcessHandler.ConvertMediaStdOut(curl, "wav", $"-f libgme", "-fs 25M", ct: cf.Token);
+                            else
+                            {
+                                File.Delete($"{tmpfoldr}/{Path.GetFileNameWithoutExtension(n)}.wav"); // because vgmsplit creates a master channel as well
+                            }
                         }
                         else if (midi.Contains(ext))
                         {
@@ -300,7 +304,7 @@ namespace fur2mp3.module {
 
                         if (new FileInfo($"{tmpfoldr}/oscoutp.{format}").Length >= 26214400) // efficiently check filesize
                         {
-                            int tbitrate = 23 * 8192 / (int)(1.048576f *(len / 44100)) - 192;
+                            int tbitrate = 20 * 8192 / (int)(1.048576f *(len / 44100)) - 192;
 
                             cff = "Compressing video..";
                             await ModifyOriginalResponseAsync(m => m.Content = cff);
