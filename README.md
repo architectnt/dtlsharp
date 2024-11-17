@@ -3,10 +3,12 @@
 
 ## requirements
 - [AAFC 3](https://github.com/architectnt/aafc) (master audio generation and normalization)
-- system installed [Corrscope](https://github.com/corrscope/corrscope)
-- system installed Timidity (midi rendering)
+- [Corrscope](https://github.com/corrscope/corrscope)
+- Timidity (midi rendering)
 - [Furnace](https://github.com/tildearrow/furnace) (duh)
 - .NET 8 (runtime & sdk)
+- [ffmpeg](https://www.ffmpeg.org/)
+- [vgmsplit (may need to compile from source)](https://github.com/nyanpasu64/vgmsplit)
 
 ## setting up
 1. install .NET
