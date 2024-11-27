@@ -40,6 +40,8 @@ namespace fur2mp3.module {
             int i, j, len = 0;
 
             if (attachment == null && url == null) {
+                FileAttachment[] s = [new(new MemoryStream(await File.ReadAllBytesAsync(".core/lgo.png")), "logo.png")];
+
                 List<string> combined = [..furmats, ..midi, ..sid, ..libmodplug, ..libgme];
                 string fm = null;
                 for(i = 0; i < combined.Count; i++)
@@ -47,11 +49,15 @@ namespace fur2mp3.module {
 
                 EmbedBuilder builder = new()
                 {
-                    Title = "FUR2MP3 REWRITE",
-                    Description = $"Supported formats: {fm}\n",
+                    Title = "FUR2MP3#",
+                    Description = "Open source Discord bot capable of rendering various chiptune formats\n\n" + 
+                    $"## *THIS INSTANCE*\nSupported formats: {fm}\n\n" +
+                    $"-# *Hardware accelerated:* `{(GPUDetector.GetGPUType() != GPUType.NONE ? "yes" : "no")}`\n" +
+                    $"-# *AAFC Version:* `v{LibAAFC.aafc_getversion()}`",
                     Color = API.RedColor,
+                    ThumbnailUrl = $"attachment://{s[0].FileName}"
                 };
-                await Context.Interaction.RespondAsync(embed: builder.Build(), allowedMentions: AllowedMentions.None);
+                await Context.Interaction.RespondWithFilesAsync(s, embed: builder.Build(), allowedMentions: AllowedMentions.None);
                 return;
             }
 
@@ -282,7 +288,8 @@ namespace fur2mp3.module {
                         await File.WriteAllTextAsync($"{tmpfoldr}/osc.yaml", CorrscopeWrapper.CreateCorrscopeOverrides(format, $"{Directory.GetCurrentDirectory()}/{tmpfoldr}/master.wav", [.. entries], w, h), cf.Token);
                         await ModifyOriginalResponseAsync(m => m.Content = cff);
 
-                        if((r = await ProcessHandler.RenderCorrscopeVideo($"{tmpfoldr}/osc.yaml", $"{tmpfoldr}/oscoutp.{format}", cf.Token)).exitcode != 0){
+                        r = await ProcessHandler.RenderCorrscopeVideo($"{tmpfoldr}/osc.yaml", $"{tmpfoldr}/oscoutp.{format}", cf.Token);
+                        if(r.exitcode != 0){
                             r.exitcode = 0x01010101;
                             r.message = $"osc rendering failed. ({r.message})";
                             return;
@@ -329,34 +336,37 @@ namespace fur2mp3.module {
                 async Task CancelButton(SocketMessageComponent btn)
                 {
                     if (btn.Message.Id != t.Id) return;
-                    if(btn.User.Id != orgusr.Id) {
-                        if(externalcanceltimes.ContainsKey(btn.User.Id)) {
-                            externalcanceltimes[btn.User.Id]++;
-                        }
-                        else {
-                            externalcanceltimes.Add(btn.User.Id, 1); 
-                            cff = t.Content;
-                        }
-                        string cft = cff;
-                        for(int i = 0; i < externalcanceltimes.Count; i++){
-                            IUser s = Program.client.GetUser(externalcanceltimes.ElementAt(i).Key);
-                            int cfgb = externalcanceltimes.ElementAt(i).Value;
-                            cft += $"\n-# {(s == null ? "unknown" : s.Mention)} tried to cancel {orgusr.Mention}'s render 🪑";
-                            if(cfgb > 1) cft += $" **{cfgb}** times!"; 
-                        }
-
-                        t = await Context.Interaction.ModifyOriginalResponseAsync(m => {
-                            m.Content = cft;
-                        });
-                        return;
-                    }
                     if (btn.Data.CustomId == "r_cancel")
                     {
+                        if(btn.User.Id != orgusr.Id) {
+                            await btn.DeferAsync();
+                            if(externalcanceltimes.ContainsKey(btn.User.Id)) {
+                                externalcanceltimes[btn.User.Id]++;
+                            }
+                            else {
+                                externalcanceltimes.Add(btn.User.Id, 1); 
+                                cff = t.Content;
+                            }
+                            string cft = cff;
+                            for(int i = 0; i < externalcanceltimes.Count; i++){
+                                IUser s = Program.client.GetUser(externalcanceltimes.ElementAt(i).Key);
+                                int cfgb = externalcanceltimes.ElementAt(i).Value;
+                                cft += $"\n-# {(s == null ? "unknown" : s.Mention)} tried to cancel {orgusr.Mention}'s render 🪑";
+                                if(cfgb > 1) cft += $" **{cfgb}** times!"; 
+                            }
+
+                            t = await Context.Interaction.ModifyOriginalResponseAsync(m => {
+                                m.Content = cft;
+                            });
+                            return;
+                        }
+
                         cf.Cancel();
                         t = await Context.Interaction.ModifyOriginalResponseAsync(m => {
                             m.Content = "canceled";
                             m.Components = null;
                         });
+                        processing = false;
                     }
                 }
 
