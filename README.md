@@ -1,5 +1,5 @@
-# FUR2MP3 Sharp
-*rewrite of heemin's* "[*fur2mp3*](https://github.com/HeeminTV/fur2mp3/)"
+# digitalout_ chiptune renderer
+*Fast and powerful chiptune renderer with just one interaction*
 
 ## requirements
 - [AAFC 3](https://github.com/architectnt/aafc) (master audio generation and normalization)

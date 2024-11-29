@@ -336,12 +336,12 @@ namespace fur2mp3.Internal {
             };
         }
 
-        public static async Task<ComponentResult> VGMSplit(string path, string outputpath, bool dontsplit = true, CancellationToken ct = default)
+        public static async Task<ComponentResult> VGMSplit(string path, string outputpath, uint subsong = 0, bool dontsplit = true, CancellationToken ct = default)
         {
             using Process fpc = Process.Start(new ProcessStartInfo()
             {
                 FileName = "vgmsplit",
-                Arguments = $"\"{path}\"{(dontsplit ? " --no-parallel" : null)}",
+                Arguments = $"{(dontsplit ? " --no-parallel" : null)} \"{path}\" {subsong + 1}",
                 UseShellExecute = false,
                 WorkingDirectory = outputpath,
             });

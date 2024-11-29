@@ -28,7 +28,7 @@ namespace fur2mp3.module {
     {
 
 
-        [SlashCommand("fur2mp3", "convert chiptune to audio")]
+        [SlashCommand("dtlrend", "convert chiptune to audio")]
         public async Task Fur2mp3(IAttachment attachment = null, string url = null, FileFormat format = FileFormat.mp3, uint subsong = 0, uint loopsOrDuration = 0, CodecType codecType = CodecType.h264, Resolution res = Resolution.FHD) {
             List<string> 
                 furmats = [".ftm", ".dmf", ".fc13", ".fc14", ".mod", ".fc", ".0cc", ".dnm", ".eft", ".fub", ".fte", ".fur"], 
@@ -154,7 +154,7 @@ namespace fur2mp3.module {
 
                             File.WriteAllBytes($"{tmpfoldr}/{n}", dt);
                             ulong s = Random256.Value;
-                            r = await ProcessHandler.VGMSplit(n, tmpfoldr, !oscRender, cf.Token);
+                            r = await ProcessHandler.VGMSplit(n, tmpfoldr, subsong, !oscRender, cf.Token);
                             if (!oscRender)
                             {
                                 r = await ProcessHandler.ConvertMediaStdOut($"{tmpfoldr}/{Path.GetFileNameWithoutExtension(n)}.wav", "wav", ct: cf.Token); // pass to std out
@@ -209,6 +209,12 @@ namespace fur2mp3.module {
                             return;
                         }
                         if (cf.IsCancellationRequested) return;
+                    }
+
+
+                    if (r.exitcode != 0) // catch failure from first rendering pass
+                    {
+                        return;
                     }
 
                     if (oscRender)
@@ -309,7 +315,7 @@ namespace fur2mp3.module {
 
                         if (new FileInfo($"{tmpfoldr}/oscoutp.{format}").Length >= 26214400) // efficiently check filesize
                         {
-                            int tbitrate = 20 * 8192 / (int)(1.048576f *(len / 44100)) - 192;
+                            int tbitrate = 25 * 8192 / (int)(1.048576f *(len / 44100)) - 192;
 
                             cff = "Compressing video..";
                             await ModifyOriginalResponseAsync(m => m.Content = cff);
@@ -355,6 +361,7 @@ namespace fur2mp3.module {
                                 if(cfgb > 1) cft += $" **{cfgb}** times!"; 
                             }
 
+                            if(!processing) return;
                             t = await Context.Interaction.ModifyOriginalResponseAsync(m => {
                                 m.Content = cft;
                             });
@@ -424,6 +431,10 @@ namespace fur2mp3.module {
 
             failure: {
                 processing = false;
+                t = await Context.Interaction.ModifyOriginalResponseAsync(m => {
+                    m.Content = cff + $"\n-# FAILED";
+                    m.Components = null;
+                });
                 EmbedBuilder e = new()
                 {
                     Color = API.RedColor,
