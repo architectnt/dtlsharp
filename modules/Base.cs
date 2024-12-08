@@ -27,7 +27,6 @@ namespace fur2mp3.module {
     public class Base : InteractionModuleBase<ShardedInteractionContext>
     {
 
-
         [SlashCommand("dtlrend", "convert chiptune to audio")]
         public async Task Fur2mp3(IAttachment attachment = null, string url = null, FileFormat format = FileFormat.mp3, uint subsong = 0, uint loopsOrDuration = 0, CodecType codecType = CodecType.h264, Resolution res = Resolution.FHD) {
             List<string> 
@@ -49,7 +48,7 @@ namespace fur2mp3.module {
 
                 EmbedBuilder builder = new()
                 {
-                    Title = "FUR2MP3#",
+                    Title = "digitalout_",
                     Description = "Open source Discord bot capable of rendering various chiptune formats\n\n" + 
                     $"## *THIS INSTANCE*\nSupported formats: {fm}\n\n" +
                     $"-# *Hardware accelerated:* `{(GPUDetector.GetGPUType() != GPUType.NONE ? "yes" : "no")}`\n" +
@@ -262,11 +261,12 @@ namespace fur2mp3.module {
 
                             short[] outp = LibAAFC.ToShortSamples(LibAAFC.Import(LibAAFC.Export(mst, 2, 44100, nm: true), null));
                             outputdt.Add((WavUtility.Export(outp, 44100, 2, 16), "master.wav", 0));
-                            
-                            API.modulecache[hash] = outputdt;
                         } else{
                             outputdt = val;
                         }
+
+
+                        API.modulecache[hash] = outputdt;
                         List<CorrscopeEntry> entries = [];
                         for (i = 0; i < outputdt.Count; i++)
                         {
