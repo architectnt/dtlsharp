@@ -74,7 +74,7 @@ namespace fur2mp3.module {
             byte[] dt = await WebClient.GetDataAsync(curl);
             ulong hash = 0; // not bothered using sha
             for(i = 0; i < dt.Length; i++){
-                hash ^= dt[i];
+                hash ^= dt[i] + (ulong)i;
             }
             hash += loopsOrDuration + subsong;
 
