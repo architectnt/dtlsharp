@@ -107,8 +107,50 @@ namespace fur2mp3.module {
             });
             frontend.Start();
 
+            CancellationTokenSource cf = new();
+            async Task CancelButton(SocketMessageComponent btn)
+            {
+                if (btn.Message.Id != t.Id) return;
+                if (btn.Data.CustomId == "r_cancel")
+                {
+                    if (btn.User.Id != orgusr.Id)
+                    {
+                        await btn.DeferAsync();
+                        if (externalcanceltimes.ContainsKey(btn.User.Id))
+                        {
+                            externalcanceltimes[btn.User.Id]++;
+                        }
+                        else
+                        {
+                            externalcanceltimes.Add(btn.User.Id, 1);
+                            cff = t.Content;
+                        }
+                        string cft = cff;
+                        for (int i = 0; i < externalcanceltimes.Count; i++)
+                        {
+                            IUser s = Program.client.GetUser(externalcanceltimes.ElementAt(i).Key);
+                            int cfgb = externalcanceltimes.ElementAt(i).Value;
+                            cft += $"\n-# {(s == null ? "unknown" : s.Mention)} tried to cancel {orgusr.Mention}'s render 🪑";
+                            if (cfgb > 1) cft += $" **{cfgb}** times!";
+                        }
+
+                        if (!processing) return;
+                        t = await Context.Interaction.ModifyOriginalResponseAsync(m => {
+                            m.Content = cft;
+                        });
+                        return;
+                    }
+
+                    cf.Cancel();
+                    t = await Context.Interaction.ModifyOriginalResponseAsync(m => {
+                        m.Content = "canceled";
+                        m.Components = null;
+                    });
+                    processing = false;
+                }
+            }
+
             try {
-                CancellationTokenSource cf = new();
                 Task renderTask = Task.Run(async () =>
                 {
                     Program.client.ButtonExecuted += CancelButton;
@@ -340,49 +382,18 @@ namespace fur2mp3.module {
                     }
                     if (cf.IsCancellationRequested) return;
                 }, cf.Token);
-                
-                async Task CancelButton(SocketMessageComponent btn)
-                {
-                    if (btn.Message.Id != t.Id) return;
-                    if (btn.Data.CustomId == "r_cancel")
-                    {
-                        if(btn.User.Id != orgusr.Id) {
-                            await btn.DeferAsync();
-                            if(externalcanceltimes.ContainsKey(btn.User.Id)) {
-                                externalcanceltimes[btn.User.Id]++;
-                            }
-                            else {
-                                externalcanceltimes.Add(btn.User.Id, 1); 
-                                cff = t.Content;
-                            }
-                            string cft = cff;
-                            for(int i = 0; i < externalcanceltimes.Count; i++){
-                                IUser s = Program.client.GetUser(externalcanceltimes.ElementAt(i).Key);
-                                int cfgb = externalcanceltimes.ElementAt(i).Value;
-                                cft += $"\n-# {(s == null ? "unknown" : s.Mention)} tried to cancel {orgusr.Mention}'s render 🪑";
-                                if(cfgb > 1) cft += $" **{cfgb}** times!"; 
-                            }
-
-                            if(!processing) return;
-                            t = await Context.Interaction.ModifyOriginalResponseAsync(m => {
-                                m.Content = cft;
-                            });
-                            return;
-                        }
-
-                        cf.Cancel();
-                        t = await Context.Interaction.ModifyOriginalResponseAsync(m => {
-                            m.Content = "canceled";
-                            m.Components = null;
-                        });
-                        processing = false;
-                    }
-                }
 
                 try {
                     await renderTask;
-                } catch (OperationCanceledException) {
-                    Console.WriteLine("task canceled");
+                } catch (Exception s) {
+                    if(s is OperationCanceledException)
+                    {
+                        Console.WriteLine("task canceled");
+                    }
+                    else {
+                        r.exitcode = 0xFFCC;
+                        r.message = $"rendering task failure ({s.Message})";
+                    }
                     return;
                 }
                 goto finalize;
@@ -420,8 +431,8 @@ namespace fur2mp3.module {
                         m.Attachments = s;
                         m.Components = cb.Build();
                     });
-
                     Directory.Delete(tmpfoldr, true);
+                    Program.client.ButtonExecuted -= CancelButton;
                     return;
                 } catch(Exception ex) {
                     r.exitcode = 0xEEFFAA;
