@@ -8,6 +8,7 @@ using Discord.WebSocket;
 using System.Diagnostics;
 using fur2mp3.Internal;
 using fur2mp3.Internal.Native;
+using System.Text;
 
 namespace fur2mp3.module {
     public enum CodecType {
@@ -72,13 +73,14 @@ namespace fur2mp3.module {
             }
 
             byte[] dt = await WebClient.GetDataAsync(curl);
+            byte[] fnbytes = Encoding.Unicode.GetBytes(n);
             ulong hash = 0; // not bothered using sha
             for(i = 0; i < dt.Length; i++){
-                hash ^= dt[i] + (ulong)i;
+                hash ^= dt[i] + (ulong)i + fnbytes[i % fnbytes.Length];
             }
             hash += loopsOrDuration + subsong;
 
-            string tmpfoldr = $"{API.tmpdir}/instance_{Random256.Value}";
+            string tmpfoldr = $"{API.tmpdir}/{Random256.Value}";
             Directory.CreateDirectory(tmpfoldr);
             string ext = Path.GetExtension(n).ToLower();
             ComponentResult r = new();
@@ -261,12 +263,12 @@ namespace fur2mp3.module {
 
                             short[] outp = LibAAFC.ToShortSamples(LibAAFC.Import(LibAAFC.Export(mst, 2, 44100, nm: true), null));
                             outputdt.Add((WavUtility.Export(outp, 44100, 2, 16), "master.wav", 0));
+
+                            API.modulecache[hash] = outputdt;
                         } else{
                             outputdt = val;
                         }
 
-
-                        API.modulecache[hash] = outputdt;
                         List<CorrscopeEntry> entries = [];
                         for (i = 0; i < outputdt.Count; i++)
                         {
