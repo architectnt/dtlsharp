@@ -78,7 +78,7 @@ namespace fur2mp3.module {
             for(i = 0; i < dt.Length; i++){
                 hash ^= dt[i] + (ulong)i + fnbytes[i % fnbytes.Length];
             }
-            hash += loopsOrDuration + subsong;
+            hash += loopsOrDuration + subsong + (uint)format;
 
             string tmpfoldr = $"{API.tmpdir}/{Random256.Value}";
             Directory.CreateDirectory(tmpfoldr);
@@ -378,7 +378,16 @@ namespace fur2mp3.module {
                     }
                     else
                     {
-                        r = await ProcessHandler.ConvertMediaInternal(r.stdout, $"{format}", ct: cf.Token);
+                        if (!API.modulecache.TryGetValue(hash, out List<(byte[] dt, string name, float amp)> val))
+                        {
+                            outputdt.Add((r.stdout, null, 0));
+                            API.modulecache[hash] = outputdt;
+                        }
+                        else
+                        {
+                            outputdt = val;
+                        }
+                        r = await ProcessHandler.ConvertMediaInternal(outputdt[0].dt, $"{format}", ct: cf.Token);
                     }
                     if (cf.IsCancellationRequested) return;
                 }, cf.Token);
