@@ -5,7 +5,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace fur2mp3.Internal.Native
+namespace dtl.Internal.Native
 {
     public unsafe partial class LibAAFC
     {

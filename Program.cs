@@ -1,5 +1,5 @@
 ﻿/*
-    This is a part of fur2mp3 Rewrite and is licenced under MIT.
+    This is a part of DigitalOut and is licenced under MIT.
 */
 
 using Discord.Commands;
@@ -8,14 +8,15 @@ using Discord.Interactions;
 using Discord.WebSocket;
 using Microsoft.Extensions.DependencyInjection;
 using System.Reflection;
-using fur2mp3.Internal;
+using dtl.Internal;
+using CatBox.NET;
 
-namespace fur2mp3 {
+namespace dtl {
     class Program {
         public static DiscordShardedClient client;
         static CommandService commands;
         static InteractionService interaction;
-        static IServiceProvider services;
+        public static IServiceProvider services;
         readonly HashSet<int> ashd = [];
         bool firststart;
 
@@ -24,10 +25,6 @@ namespace fur2mp3 {
         async Task RunAsync()
         {
             RandomProviders.InitializeAll();
-            if(File.ReadAllText(".core/credential.txt") == "YOUR_TOKEN_HERE") {
-                Console.WriteLine("you need to assign your bot token in .core/credential.txt!");
-                return;
-            }
 
             client = new DiscordShardedClient(new DiscordSocketConfig()
             {
@@ -52,6 +49,7 @@ namespace fur2mp3 {
                 .AddSingleton(client)
                 .AddSingleton(commands)
                 .AddSingleton(interaction)
+                .AddCatBoxServices(f => f.CatBoxUrl = new($"https://catbox.moe/{API.settings.catboxuser}/api.php"))
                 .BuildServiceProvider();
             client.Log += (msg) => {
                 Console.WriteLine($"{DateTime.Now:h:mm:ss tt} | {(msg.Exception == null
@@ -63,9 +61,15 @@ namespace fur2mp3 {
                 ashd.Add(s.ShardId);
                 if (ashd.Count == client.Shards.Count) await ClientReady();
             };
-            await client.LoginAsync(TokenType.Bot, File.ReadAllText(".core/credential.txt").Trim());
+
+            if(API.settings.token == "") {
+                Console.WriteLine("you need to assign your bot token in .core/settings.json!");
+                return;
+            }
+
+            await client.LoginAsync(TokenType.Bot, API.settings.token);
             await client.StartAsync();
-            await client.SetCustomStatusAsync("LKJFLKSJALKFJLKASJ");
+            await client.SetCustomStatusAsync(API.settings.statuses[Random256.Range(API.settings.statuses.Length)]);
             await Task.Delay(-1);
         }
 

@@ -1,4 +1,4 @@
-﻿namespace fur2mp3.Internal
+﻿namespace dtl.Internal
 {
     public static class RandomProviders
     {

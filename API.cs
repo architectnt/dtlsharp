@@ -1,5 +1,5 @@
 ﻿/*
-    This is a part of fur2mp3 Rewrite and is licenced under MIT.
+    This is a part of DigitalOut and is licenced under MIT.
 */
 
 using Discord;
@@ -7,11 +7,16 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.Json;
 using System.Threading.Tasks;
+using dtl.Internal;
 
-namespace fur2mp3 {
+namespace dtl {
     public static class API {
         public static Dictionary<ulong, List<(byte[] dt, string name, float amp)>> modulecache = []; // okay
+        public static readonly Settings settings = JsonSerializer.Deserialize<Settings>(File.ReadAllText(".core/settings.json"), new JsonSerializerOptions(){
+            IncludeFields = true
+        });
 
         public const string tmpdir = ".tmp";
 

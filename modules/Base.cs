@@ -1,16 +1,17 @@
 ﻿/*
-    This is a part of fur2mp3 Rewrite and is licenced under MIT.
+    This is a part of DigitalOut and is licenced under MIT.
 */
 
 using Discord;
 using Discord.Interactions;
 using Discord.WebSocket;
 using System.Diagnostics;
-using fur2mp3.Internal;
-using fur2mp3.Internal.Native;
+using dtl.Internal;
+using dtl.Internal.Native;
 using System.Text;
+using CatBox.NET.Requests;
 
-namespace fur2mp3.module {
+namespace dtl.module {
     public enum CodecType {
         h264,
         hevc,
@@ -91,7 +92,6 @@ namespace fur2mp3.module {
             ComponentBuilder cns = new();
             cns.WithButton($"cancel", "r_cancel", style: ButtonStyle.Danger);
             IUser orgusr = Context.User;
-            Dictionary<ulong, int> externalcanceltimes = [];
             string cff = null;
             bool oscRender = format == FileFormat.mp4 || format == FileFormat.webm,
             processing = false;
@@ -115,29 +115,7 @@ namespace fur2mp3.module {
                 {
                     if (btn.User.Id != orgusr.Id)
                     {
-                        await btn.DeferAsync();
-                        if (externalcanceltimes.ContainsKey(btn.User.Id))
-                        {
-                            externalcanceltimes[btn.User.Id]++;
-                        }
-                        else
-                        {
-                            externalcanceltimes.Add(btn.User.Id, 1);
-                            cff = t.Content;
-                        }
-                        string cft = cff;
-                        for (int i = 0; i < externalcanceltimes.Count; i++)
-                        {
-                            IUser s = Program.client.GetUser(externalcanceltimes.ElementAt(i).Key);
-                            int cfgb = externalcanceltimes.ElementAt(i).Value;
-                            cft += $"\n-# {(s == null ? "unknown" : s.Mention)} tried to cancel {orgusr.Mention}'s render 🪑";
-                            if (cfgb > 1) cft += $" **{cfgb}** times!";
-                        }
-
-                        if (!processing) return;
-                        t = await Context.Interaction.ModifyOriginalResponseAsync(m => {
-                            m.Content = cft;
-                        });
+                        await btn.RespondAsync($"you cannot cancel {orgusr.Mention}'s render.", ephemeral: true);
                         return;
                     }
 
@@ -357,24 +335,11 @@ namespace fur2mp3.module {
                             _ => null,
                         };
 
-                        if (new FileInfo($"{tmpfoldr}/oscoutp.{format}").Length >= 26214400) // efficiently check filesize
-                        {
-                            int tbitrate = 25 * 8192 / (int)(1.048576f *(len / 44100)) - 192;
-
-                            cff = "Compressing video..";
-                            await ModifyOriginalResponseAsync(m => m.Content = cff);
-                            r = await ProcessHandler.ConvertMediaStdOut($"{tmpfoldr}/oscoutp.{format}", $"{format}", hw, args: $"-c:v {codec} -b:v {tbitrate}k -maxrate {tbitrate}k -bufsize {tbitrate * 2}k -b:a 192k {(format == FileFormat.mp4 
-                                ? "-movflags +faststart+frag_keyframe+empty_moov+default_base_moof" 
-                                : null)}", ct: cf.Token);
-                        }
-                        else
-                        {
-                            cff = "fragmenting..";
-                            await ModifyOriginalResponseAsync(m => m.Content = cff);
-                            r = await ProcessHandler.ConvertMediaStdOut($"{tmpfoldr}/oscoutp.{format}", $"{format}", hw, args: $"-c:v {codec} -b:a 192k {(format == FileFormat.mp4 
-                                ? "-movflags +faststart+frag_keyframe+empty_moov+default_base_moof" 
-                                : null)}", ct: cf.Token);
-                        }
+                        cff = "fragmenting..";
+                        await ModifyOriginalResponseAsync(m => m.Content = cff);
+                        r = await ProcessHandler.ConvertMediaStdOut($"{tmpfoldr}/oscoutp.{format}", $"{format}", hw, args: $"-c:v {codec} -crf 31 -b:a 192k {(format == FileFormat.mp4 
+                            ? "-movflags +faststart+frag_keyframe+empty_moov+default_base_moof" 
+                            : null)}", ct: cf.Token);
                     }
                     else
                     {
@@ -419,25 +384,38 @@ namespace fur2mp3.module {
             finalize: {
                 try
                 {
+                    string fn = $"{Path.GetFileNameWithoutExtension(n)}.{format}";
                     sw.Stop();
                     processing = false;
                     cff = "Finalizing";
-                    await ModifyOriginalResponseAsync(m => m.Content = cff);
+                    using MemoryStream str = new(r.stdout);
+                    string externurl = null;
                     if (r.exitcode != 0) goto failure;
                     if (r.stdout.LongLength > 26214400)
                     {
-                        r.exitcode = 0xAFD013F;
-                        r.message = "result went over 25mb";
-                        goto failure;
+                        if(API.settings.catboxuser != ""){
+                            cff = "Bringing the heavy lifting to LitterBox service..";
+                            var resp = await WebClient.GetLiterBoxInstance().UploadImage(new TemporaryStreamUploadRequest(){
+                                Expiry = CatBox.NET.Enums.ExpireAfter.ThreeDays,
+                                FileName = fn,
+                                Stream = str,
+                            });
+                            externurl = resp;
+                        }else{
+                            r.exitcode = 0xDDFA14;
+                            r.message = $"over 25mb.";
+                            goto failure;
+                        }
                     }
-                    FileAttachment[] s = [new(new MemoryStream(r.stdout), $"{Path.GetFileNameWithoutExtension(n)}.{format}")];
-                    ComponentBuilder cb = new();
-                    cb.WithButton($"get {ext} file", style: ButtonStyle.Link, url: curl);
-
+                    await ModifyOriginalResponseAsync(m => m.Content = cff);
                     await ModifyOriginalResponseAsync(m =>
                     {
-                        m.Content = $"{Context.User.Mention}'s render finished!\n***{n}***\n-# **time taken:** *{API.FriendlyTimeFormat(sw.Elapsed)}*";
-                        m.Attachments = s;
+                        if(externurl != null){
+                            FileAttachment[] s = [new(new MemoryStream(r.stdout), $"{Path.GetFileNameWithoutExtension(n)}.{format}")];
+                            m.Attachments = s;
+                        }
+                        m.Content = $"{Context.User.Mention}'s render finished!\n***{(externurl != null ? $"[{n}]({externurl})":n)}***\n-# **time taken:** *{API.FriendlyTimeFormat(sw.Elapsed)}*";
+                        ComponentBuilder cb = new ComponentBuilder().WithButton($"get {ext} file", style: ButtonStyle.Link, url: curl);
                         m.Components = cb.Build();
                     });
                     Directory.Delete(tmpfoldr, true);

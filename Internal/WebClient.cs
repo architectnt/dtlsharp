@@ -1,8 +1,11 @@
 ﻿/*
-    This is a part of fur2mp3 Rewrite and is licenced under MIT.
+    This is a part of DigitalOut and is licenced under MIT.
 */
 
-namespace fur2mp3.Internal {
+using CatBox.NET.Client;
+using Microsoft.Extensions.DependencyInjection;
+
+namespace dtl.Internal {
     public static class WebClient {
         readonly static HttpClient cl = new();
         public async static Task<byte[]> GetDataAsync(string url)
@@ -27,6 +30,11 @@ namespace fur2mp3.Internal {
             } catch{
                 return false;
             }
+        }
+
+        public static ILitterboxClient GetLiterBoxInstance(){
+            using AsyncServiceScope scope = Program.services.CreateAsyncScope();
+            return scope.ServiceProvider.GetRequiredService<ILitterboxClient>();
         }
     }
 }

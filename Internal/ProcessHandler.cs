@@ -1,5 +1,5 @@
 ﻿/*
-    This is a part of fur2mp3 Rewrite and is licenced under MIT.
+    This is a part of DigitalOut and is licenced under MIT.
 */
 
 using System;
@@ -11,7 +11,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace fur2mp3.Internal {
+namespace dtl.Internal {
     /// <summary>
     /// Results for external components
     /// </summary>
