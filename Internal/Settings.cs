@@ -5,7 +5,7 @@
 namespace dtl.Internal {
     public class Settings{
         public string token;
-        public string catboxuser;
+        public bool usecatbox;
         public string[] statuses;
     }
 }

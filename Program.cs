@@ -46,10 +46,13 @@ namespace dtl {
                 EnableAutocompleteHandlers = true,
             });
             services = new ServiceCollection()
+                .AddCatBoxServices(f => {
+                    f.CatBoxUrl = new Uri("https://catbox.moe/user/api.php");
+                    f.LitterboxUrl = new Uri("https://litterbox.catbox.moe/resources/internals/api.php");
+                })
                 .AddSingleton(client)
                 .AddSingleton(commands)
                 .AddSingleton(interaction)
-                .AddCatBoxServices(f => f.CatBoxUrl = new($"https://catbox.moe/{API.settings.catboxuser}/api.php"))
                 .BuildServiceProvider();
             client.Log += (msg) => {
                 Console.WriteLine($"{DateTime.Now:h:mm:ss tt} | {(msg.Exception == null

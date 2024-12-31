@@ -389,12 +389,15 @@ namespace dtl.module {
                     processing = false;
                     cff = "Finalizing";
                     using MemoryStream str = new(r.stdout);
+                    FileAttachment[] s = null;
                     string externurl = null;
                     if (r.exitcode != 0) goto failure;
+                    await ModifyOriginalResponseAsync(m => m.Content = cff);
                     if (r.stdout.LongLength > 26214400)
                     {
-                        if(API.settings.catboxuser != ""){
-                            cff = "Bringing the heavy lifting to LitterBox service..";
+                        if(API.settings.usecatbox){
+                            cff = "Bringing the heavy lifting externally..";
+                            await ModifyOriginalResponseAsync(m => m.Content = cff);
                             var resp = await WebClient.GetLiterBoxInstance().UploadImage(new TemporaryStreamUploadRequest(){
                                 Expiry = CatBox.NET.Enums.ExpireAfter.ThreeDays,
                                 FileName = fn,
@@ -407,14 +410,17 @@ namespace dtl.module {
                             goto failure;
                         }
                     }
-                    await ModifyOriginalResponseAsync(m => m.Content = cff);
+                    if(externurl != null){
+                        s = [new(str, $"{Path.GetFileNameWithoutExtension(n)}.{format}")];
+                    }
+
+
                     await ModifyOriginalResponseAsync(m =>
                     {
-                        if(externurl != null){
-                            FileAttachment[] s = [new(new MemoryStream(r.stdout), $"{Path.GetFileNameWithoutExtension(n)}.{format}")];
+                        if(externurl == null){
                             m.Attachments = s;
                         }
-                        m.Content = $"{Context.User.Mention}'s render finished!\n***{(externurl != null ? $"[{n}]({externurl})":n)}***\n-# **time taken:** *{API.FriendlyTimeFormat(sw.Elapsed)}*";
+                        m.Content = $"{Context.User.Mention}'s render finished!\n-# **time taken:** *{API.FriendlyTimeFormat(sw.Elapsed)}*\n***{(externurl != null ? $"[{n}]({externurl})":n)}***";
                         ComponentBuilder cb = new ComponentBuilder().WithButton($"get {ext} file", style: ButtonStyle.Link, url: curl);
                         m.Components = cb.Build();
                     });
@@ -423,7 +429,7 @@ namespace dtl.module {
                     return;
                 } catch(Exception ex) {
                     r.exitcode = 0xEEFFAA;
-                    r.message = $"failed finalizing: {ex}";
+                    r.message = $"failed finalizing: {ex.Message}";
                     goto failure;
                 }
             }

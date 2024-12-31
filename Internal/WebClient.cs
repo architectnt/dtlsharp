@@ -33,7 +33,7 @@ namespace dtl.Internal {
         }
 
         public static ILitterboxClient GetLiterBoxInstance(){
-            using AsyncServiceScope scope = Program.services.CreateAsyncScope();
+            AsyncServiceScope scope = Program.services.CreateAsyncScope();
             return scope.ServiceProvider.GetRequiredService<ILitterboxClient>();
         }
     }
