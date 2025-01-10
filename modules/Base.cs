@@ -54,7 +54,7 @@ namespace dtl.module {
                     Description = "Open source Discord bot capable of rendering various chiptune formats\n\n" + 
                     $"## *THIS INSTANCE*\nSupported formats: {fm}\n\n" +
                     $"-# *Hardware accelerated:* `{(GPUDetector.GetGPUType() != GPUType.NONE ? "yes" : "no")}`\n" +
-                    $"-# *AAFC Version:* `v{LibAAFC.aafc_getversion()}`",
+                    $"-# *AAFC Version:* `v{LibAAFC.Version}`",
                     Color = API.RedColor,
                     ThumbnailUrl = $"attachment://{s[0].FileName}"
                 };
@@ -280,8 +280,8 @@ namespace dtl.module {
                                 r.message = $"all channels are silent.";
                                 return;
                             }
-
-                            short[] outp = LibAAFC.ToShortSamples(LibAAFC.Import(LibAAFC.Export(mst, 2, 44100, nm: true), null));
+                            using AudioClip clip = LibAAFC.Import(LibAAFC.Export(mst, 2, 44100, nm: true), null);
+                            short[] outp = clip.ToShortSamples();
                             outputdt.Add((WavUtility.Export(outp, 44100, 2, 16), "master.wav", 0));
 
                             API.modulecache[hash] = outputdt;
@@ -313,7 +313,7 @@ namespace dtl.module {
                         };
 
                         cff = "Rendering oscilloscope video";
-                        await File.WriteAllTextAsync($"{tmpfoldr}/osc.yaml", CorrscopeWrapper.CreateCorrscopeOverrides(format, $"{Directory.GetCurrentDirectory()}/{tmpfoldr}/master.wav", [.. entries], w, h), cf.Token);
+                        await File.WriteAllTextAsync($"{tmpfoldr}/osc.yaml", CorrscopeWrapper.CreateCorrscopeOverrides(format, codecType, $"{Directory.GetCurrentDirectory()}/{tmpfoldr}/master.wav", [.. entries], w, h), cf.Token);
                         await ModifyOriginalResponseAsync(m => m.Content = cff);
 
                         r = await ProcessHandler.RenderCorrscopeVideo($"{tmpfoldr}/osc.yaml", $"{tmpfoldr}/oscoutp.{format}", cf.Token);
@@ -323,7 +323,7 @@ namespace dtl.module {
                             return;
                         }
 
-                        string codec = ProcessHandler.GetHWAccelCodec(GPUDetector.GetGPUType(), format);
+                        string codec = ProcessHandler.GetHWAccelCodec(GPUDetector.GetGPUType(), format, codecType);
 
                         string hw = GPUDetector.GetGPUType() switch
                         {
@@ -337,7 +337,7 @@ namespace dtl.module {
 
                         cff = "fragmenting..";
                         await ModifyOriginalResponseAsync(m => m.Content = cff);
-                        r = await ProcessHandler.ConvertMediaStdOut($"{tmpfoldr}/oscoutp.{format}", $"{format}", hw, args: $"-c:v {codec} -crf 31 -b:a 192k {(format == FileFormat.mp4 
+                        r = await ProcessHandler.ConvertMediaStdOut($"{tmpfoldr}/oscoutp.{format}", $"{format}", hw, args: $"-b:v 1512k -b:a 192k {(format == FileFormat.mp4 
                             ? "-movflags +faststart+frag_keyframe+empty_moov+default_base_moof" 
                             : null)}", ct: cf.Token);
                     }
@@ -388,8 +388,6 @@ namespace dtl.module {
                     sw.Stop();
                     processing = false;
                     cff = "Finalizing";
-                    using MemoryStream str = new(r.stdout);
-                    FileAttachment[] s = null;
                     string externurl = null;
                     if (r.exitcode != 0) goto failure;
                     await ModifyOriginalResponseAsync(m => m.Content = cff);
@@ -401,7 +399,7 @@ namespace dtl.module {
                             var resp = await WebClient.GetLiterBoxInstance().UploadImage(new TemporaryStreamUploadRequest(){
                                 Expiry = CatBox.NET.Enums.ExpireAfter.ThreeDays,
                                 FileName = fn,
-                                Stream = str,
+                                Stream = new MemoryStream(r.stdout),
                             });
                             externurl = resp;
                         }else{
@@ -410,18 +408,15 @@ namespace dtl.module {
                             goto failure;
                         }
                     }
-                    if(externurl != null){
-                        s = [new(str, $"{Path.GetFileNameWithoutExtension(n)}.{format}")];
-                    }
+                    ComponentBuilder cb = new ComponentBuilder().WithButton($"get {ext} file", style: ButtonStyle.Link, url: curl);
+                    FileAttachment[] s = externurl != null ? null : [new(new MemoryStream(r.stdout), $"{Path.GetFileNameWithoutExtension(n)}.{format}")];
 
 
                     await ModifyOriginalResponseAsync(m =>
                     {
-                        if(externurl == null){
-                            m.Attachments = s;
-                        }
                         m.Content = $"{Context.User.Mention}'s render finished!\n-# **time taken:** *{API.FriendlyTimeFormat(sw.Elapsed)}*\n***{(externurl != null ? $"[{n}]({externurl})":n)}***";
-                        ComponentBuilder cb = new ComponentBuilder().WithButton($"get {ext} file", style: ButtonStyle.Link, url: curl);
+                        if (s != null)
+                            m.Attachments = s;
                         m.Components = cb.Build();
                     });
                     Directory.Delete(tmpfoldr, true);

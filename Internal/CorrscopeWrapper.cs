@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using dtl.module;
 
 namespace dtl.Internal {
     public struct CorrscopeEntry
@@ -17,13 +18,13 @@ namespace dtl.Internal {
     }
 
     public static class CorrscopeWrapper {
-        public static string CreateCorrscopeOverrides(FileFormat format, string masterpath, CorrscopeEntry[] channels, uint x, uint y)
+        public static string CreateCorrscopeOverrides(FileFormat format, CodecType codec, string masterpath, CorrscopeEntry[] channels, uint x, uint y)
         {
             string f = File.ReadAllText(".core/fus_osc_config.yaml");
             f += $"  width: {x}\n  height: {y}\n";
             f += "ffmpeg_cli: !FFmpegOutputConfig\n" +
                 "  path: \n" +
-                $"  video_template: -c:v {ProcessHandler.GetHWAccelCodec(GPUDetector.GetGPUType(), format)} {(format == FileFormat.mp4 
+                $"  video_template: -c:v {ProcessHandler.GetHWAccelCodec(GPUDetector.GetGPUType(), format, codec)} {(format == FileFormat.mp4 
                     ? "-movflags +faststart+frag_keyframe+empty_moov+default_base_moof" 
                     : null)}"+
                 "\n";

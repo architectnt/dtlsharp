@@ -10,6 +10,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using dtl.module;
 
 namespace dtl.Internal {
     /// <summary>
@@ -33,16 +34,21 @@ namespace dtl.Internal {
     public static class ProcessHandler
     {
 
-        public static string GetHWAccelCodec(GPUType gpuType, FileFormat format) => (gpuType, format) switch {
-            (GPUType.NONE, FileFormat.mp4) => "libx264",
-            (GPUType.NV, FileFormat.mp4) => "h264_nvenc",
-            (GPUType.RADEON, FileFormat.mp4) => "h264_amf",
-            (GPUType.ARC, FileFormat.mp4) => "h264_qsv",
-            (GPUType.APPLESILICON, FileFormat.mp4) => "h264_videotoolbox",
-            (GPUType.NONE, FileFormat.webm) => "libvpx",
-            (GPUType.NV, FileFormat.webm) => "libvpx", // GOD DAMN IT
-            (GPUType.RADEON, FileFormat.webm) => "libvpx", // gotcha: may not support vp9
-            (GPUType.ARC, FileFormat.webm) => "libvpx", // go back and provide hardware accel if needed THIS IS ABYSMAL
+        public static string GetHWAccelCodec(GPUType gpuType, FileFormat format, CodecType ctype) => (gpuType, format, ctype) switch {
+            (GPUType.NONE, FileFormat.mp4, CodecType.h264) => "libx264",
+            (GPUType.NV, FileFormat.mp4, CodecType.h264) => "h264_nvenc",
+            (GPUType.RADEON, FileFormat.mp4, CodecType.h264) => "h264_amf",
+            (GPUType.ARC, FileFormat.mp4, CodecType.h264) => "h264_qsv",
+            (GPUType.APPLESILICON, FileFormat.mp4, CodecType.h264) => "h264_videotoolbox",
+            (GPUType.NONE, FileFormat.mp4, CodecType.hevc) => "libx264",
+            (GPUType.NV, FileFormat.mp4, CodecType.hevc) => "h264_nvenc",
+            (GPUType.RADEON, FileFormat.mp4, CodecType.hevc) => "h264_amf",
+            (GPUType.ARC, FileFormat.mp4, CodecType.hevc) => "h264_qsv",
+            (GPUType.APPLESILICON, FileFormat.mp4, CodecType.hevc) => "h264_videotoolbox",
+            (GPUType.NONE, FileFormat.webm, _) => "libvpx",
+            (GPUType.NV, FileFormat.webm, _) => "libvpx", // GOD DAMN IT
+            (GPUType.RADEON, FileFormat.webm, _) => "libvpx", // gotcha: may not support vp9
+            (GPUType.ARC, FileFormat.webm, _) => "libvpx", // go back and provide hardware accel if needed THIS IS ABYSMAL
             _ => "libx264"
         };
 
