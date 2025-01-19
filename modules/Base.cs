@@ -391,7 +391,7 @@ namespace dtl.module {
                     string externurl = null;
                     if (r.exitcode != 0) goto failure;
                     await ModifyOriginalResponseAsync(m => m.Content = cff);
-                    if (r.stdout.LongLength > 26214400)
+                    if (r.stdout.LongLength > 10485760) // WHY IS IT 10 MB DISCORD SHOW YOURSELF
                     {
                         if(API.settings.usecatbox){
                             cff = "Bringing the heavy lifting externally..";
