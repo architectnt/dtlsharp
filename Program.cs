@@ -77,7 +77,8 @@ namespace dtl {
             await client.SetCustomStatusAsync(API.settings.statuses[Random256.Range(API.settings.statuses.Length)]);
 
 
-            memsave.Elapsed += (_, _) => {
+            memsave.Elapsed += async (_, _) => {
+                await client.SetCustomStatusAsync(API.settings.statuses[Random256.Range(API.settings.statuses.Length)]);
                 for(int i = API.modulecache.Count; i-->0;){
                     long sc = API.modulecache.ElementAt(i).Value[0].lastusetime; // uh
                     if((DateTimeOffset.Now.ToUnixTimeSeconds() - sc) >= 3600){
@@ -85,7 +86,7 @@ namespace dtl {
                     }
                 }
             };
-
+            memsave.Start();
 
             await Task.Delay(-1);
         }
