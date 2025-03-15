@@ -13,7 +13,7 @@ using dtl.Internal;
 
 namespace dtl {
     public static class API {
-        public static Dictionary<ulong, List<(byte[] dt, string name, float amp)>> modulecache = []; // okay
+        public static Dictionary<ulong, List<(byte[] dt, string name, float amp, long lastusetime)>> modulecache = []; // okay
         public static readonly Settings settings = JsonSerializer.Deserialize<Settings>(File.ReadAllText(".core/settings.json"), new JsonSerializerOptions(){
             IncludeFields = true
         });

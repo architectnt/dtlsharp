@@ -10,7 +10,7 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
-using dtl.module;
+using dtl.modules;
 
 namespace dtl.Internal {
     /// <summary>

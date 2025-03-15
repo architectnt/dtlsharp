@@ -7,7 +7,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
-using dtl.module;
+using dtl.modules;
 
 namespace dtl.Internal {
     public struct CorrscopeEntry

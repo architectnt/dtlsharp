@@ -20,6 +20,8 @@ namespace dtl {
         readonly HashSet<int> ashd = [];
         bool firststart;
 
+        static readonly System.Timers.Timer memsave = new(3600000);
+
         static void Main() => new Program().RunAsync().GetAwaiter().GetResult();
 
         async Task RunAsync()
@@ -73,6 +75,18 @@ namespace dtl {
             await client.LoginAsync(TokenType.Bot, API.settings.token);
             await client.StartAsync();
             await client.SetCustomStatusAsync(API.settings.statuses[Random256.Range(API.settings.statuses.Length)]);
+
+
+            memsave.Elapsed += (_, _) => {
+                for(int i = API.modulecache.Count; i-->0;){
+                    long sc = API.modulecache.ElementAt(i).Value[0].lastusetime; // uh
+                    if((DateTimeOffset.Now.ToUnixTimeSeconds() - sc) >= 3600){
+                        API.modulecache.Remove(API.modulecache.ElementAt(i).Key);
+                    }
+                }
+            };
+
+
             await Task.Delay(-1);
         }
 
