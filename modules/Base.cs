@@ -10,6 +10,7 @@ using dtl.Internal;
 using dtl.Internal.Native;
 using System.Text;
 using CatBox.NET.Requests;
+using System.Runtime.InteropServices;
 
 namespace dtl.modules {
     public enum CodecType {
@@ -93,7 +94,7 @@ namespace dtl.modules {
             cns.WithButton($"cancel", "r_cancel", style: ButtonStyle.Danger);
             IUser orgusr = Context.User;
             string cff = null;
-            bool oscRender = format == FileFormat.mp4 || format == FileFormat.webm,
+            bool oscRender = format == FileFormat.mp4,
             processing = false;
 
             Thread frontend = new(async()=>{ // just so that it DOESN'T THROW AN ERRO
@@ -146,9 +147,7 @@ namespace dtl.modules {
                             string what = $"{tmpfoldr}/{s}.wav";
                             r = await ProcessHandler.Furnace($"{tmpfoldr}/{n}", what, oscRender, loopsOrDuration, subsong, cf.Token);
                             if (!oscRender)
-                            {
                                 r = await ProcessHandler.ConvertMediaStdOut(what, "wav", ct: cf.Token); // pass to std out
-                            }
                         } else if (libmodplug.Contains(ext)) {
                             cff = "Rendering..";
                             t = await ModifyOriginalResponseAsync(m => {
@@ -234,14 +233,12 @@ namespace dtl.modules {
 
 
                     if (r.exitcode != 0) // catch failure from first rendering pass
-                    {
                         return;
-                    }
 
                     if (oscRender)
                     {
                         if(!API.modulecache.TryGetValue(hash, out List<(byte[] dt, string name, float amp, long timestamp)> val)) {
-                            cff = "Applying additional encoding";
+                            cff = "post processing audio..";
                             await ModifyOriginalResponseAsync(m => m.Content = cff);
 
                             FileInfo[] c = [..new DirectoryInfo(tmpfoldr).GetFiles("*.wav").OrderBy(f => f.CreationTimeUtc)];
@@ -249,8 +246,7 @@ namespace dtl.modules {
                             for (i = 0; i < c.Length; i++)
                             {
                                 r = await ProcessHandler.ConvertMediaStdOut(c[i].FullName, "s16le", args: $"-ac 2 -ar 44100", ct: cf.Token);
-                                short[] samples = new short[r.stdout.Length / 2];
-                                Buffer.BlockCopy(r.stdout, 0, samples, 0, r.stdout.Length);
+                                short[] samples = MemoryMarshal.Cast<byte, short>(r.stdout).ToArray(); // fucking shit
                                 if (!samples.All(value => value == 0))
                                 {
                                     for (j = 0; j < samples.Length; j++)
@@ -276,7 +272,7 @@ namespace dtl.modules {
                             }
                             if (outputdt.Count == 0)
                             {
-                                r.exitcode = 0xFFFACCC;
+                                r.exitcode = 0xFACC; // fuck.
                                 r.message = $"all channels are silent.";
                                 return;
                             }
@@ -336,11 +332,9 @@ namespace dtl.modules {
                             _ => null,
                         };
 
-                        cff = "fragmenting..";
+                        cff = "fragmenting video..";
                         await ModifyOriginalResponseAsync(m => m.Content = cff);
-                        r = await ProcessHandler.ConvertMediaStdOut($"{tmpfoldr}/oscoutp.{format}", $"{format}", hw, args: $"-b:v 1512k -b:a 192k {(format == FileFormat.mp4 
-                            ? "-movflags +faststart+frag_keyframe+empty_moov+default_base_moof" 
-                            : null)}", ct: cf.Token);
+                        r = await ProcessHandler.ConvertMediaStdOut($"{tmpfoldr}/oscoutp.{format}", $"{format}", hw, args: $"-b:v 1512k -b:a 192k -movflags +faststart+frag_keyframe+empty_moov+default_base_moof", ct: cf.Token);
                     }
                     else
                     {
@@ -388,11 +382,12 @@ namespace dtl.modules {
                     string fn = $"{Path.GetFileNameWithoutExtension(n)}.{format}";
                     sw.Stop();
                     processing = false;
-                    cff = "Finalizing";
+                    cff = "finishing..";
                     string externurl = null;
                     if (r.exitcode != 0) goto failure;
                     await ModifyOriginalResponseAsync(m => m.Content = cff);
-                    if (r.stdout.LongLength > 10485760) // WHY IS IT 10 MB DISCORD SHOW YOURSELF
+                    MemoryStream m = new(r.stdout);
+                    if (r.stdout.LongLength > 10000000) // WHY IS IT 10 MB DISCORD SHOW YOURSELF
                     {
                         if(API.settings.usecatbox){
                             cff = "Bringing the heavy lifting externally..";
@@ -400,22 +395,24 @@ namespace dtl.modules {
                             var resp = await WebClient.GetLiterBoxInstance().UploadImage(new TemporaryStreamUploadRequest(){
                                 Expiry = CatBox.NET.Enums.ExpireAfter.ThreeDays,
                                 FileName = fn,
-                                Stream = new MemoryStream(r.stdout),
+                                Stream = m,
                             });
                             externurl = resp;
                         }else{
                             r.exitcode = 0xDDFA14;
-                            r.message = $"over 25mb.";
+                            r.message = $"over 10mb.";
                             goto failure;
                         }
                     }
                     ComponentBuilder cb = new ComponentBuilder().WithButton($"get {ext} file", style: ButtonStyle.Link, url: curl);
-                    FileAttachment[] s = externurl != null ? null : [new(new MemoryStream(r.stdout), $"{Path.GetFileNameWithoutExtension(n)}.{format}")];
+                    FileAttachment[] s = externurl != null 
+                        ? null 
+                        : [new(m, $"{Path.GetFileNameWithoutExtension(n)}.{format}")];
 
 
                     await ModifyOriginalResponseAsync(m =>
                     {
-                        m.Content = $"{Context.User.Mention}'s render finished!\n-# **time taken:** *{API.FriendlyTimeFormat(sw.Elapsed)}*\n***{(externurl != null ? $"[{n}]({externurl})":n)}***";
+                        m.Content = $"{Context.User.Mention}'s render finished!\n-# **time:** *{API.FriendlyTimeFormat(sw.Elapsed)}*\n***{(externurl != null ? $"[{n}]({externurl})":n)}***";
                         if (s != null)
                             m.Attachments = s;
                         m.Components = cb.Build();

@@ -135,7 +135,7 @@ namespace dtl {
                 }
             };
 
-            client.AutocompleteExecuted += async (SocketAutocompleteInteraction arg) => {
+            client.AutocompleteExecuted += async (arg) => {
                 InteractionContext context = new(client, arg, arg.Channel);
                 Discord.Interactions.IResult r = await interaction.ExecuteCommandAsync(context, services: services);
                 if (!r.IsSuccess)

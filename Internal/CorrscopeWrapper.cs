@@ -2,11 +2,6 @@
     This is a part of DigitalOut and is licenced under MIT.
 */
 
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using dtl.modules;
 
 namespace dtl.Internal {
