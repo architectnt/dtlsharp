@@ -20,9 +20,7 @@ namespace dtl {
 
         public const string tmpdir = ".tmp";
 
-        public static Color RedColor {
-            get => new(255, 20, 75);
-        }
+        public static Color RedColor => new(255, 20, 75);
 
         public static string FriendlyTimeFormat(TimeSpan elapsed) {
             if (elapsed.TotalHours >= 1)

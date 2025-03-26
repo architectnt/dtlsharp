@@ -49,8 +49,7 @@ namespace dtl.modules {
                 for(i = 0; i < combined.Count; i++)
                     fm += $"`{combined[i]}` ";
 
-                EmbedBuilder builder = new()
-                {
+                EmbedBuilder builder = new() {
                     Title = "digitalout_",
                     Description = "Open source Discord bot capable of rendering various chiptune formats\n\n" + 
                     $"## *THIS INSTANCE*\nSupported formats: {fm}\n\n" +
@@ -112,10 +111,8 @@ namespace dtl.modules {
             async Task CancelButton(SocketMessageComponent btn)
             {
                 if (btn.Message.Id != t.Id) return;
-                if (btn.Data.CustomId == "r_cancel")
-                {
-                    if (btn.User.Id != orgusr.Id)
-                    {
+                if (btn.Data.CustomId == "r_cancel") {
+                    if (btn.User.Id != orgusr.Id) {
                         await btn.RespondAsync($"you cannot cancel {orgusr.Mention}'s render.", ephemeral: true);
                         return;
                     }
@@ -130,8 +127,7 @@ namespace dtl.modules {
             }
 
             try {
-                Task renderTask = Task.Run(async () =>
-                {
+                Task renderTask = Task.Run(async () => {
                     Program.client.ButtonExecuted += CancelButton;
                     processing = true;
                     if(!API.modulecache.ContainsKey(hash)) {

@@ -5,8 +5,7 @@
 using dtl.modules;
 
 namespace dtl.Internal {
-    public struct CorrscopeEntry
-    {
+    public struct CorrscopeEntry {
         public string path;
         public string label;
         public float amplify;

@@ -10,8 +10,7 @@ namespace dtl.Internal {
         readonly static HttpClient cl = new();
         public async static Task<byte[]> GetDataAsync(string url)
             => await cl.GetByteArrayAsync(url);
-        public async static Task SaveDataAsync(string url, string path)
-        {
+        public async static Task SaveDataAsync(string url, string path) {
             byte[] d = await cl.GetByteArrayAsync(url);
             using FileStream fs = new(path, FileMode.Create);
             await fs.WriteAsync(d);

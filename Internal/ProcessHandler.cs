@@ -4,12 +4,11 @@
 
 using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Text;
 using dtl.modules;
 
 namespace dtl.Internal {
-    /// <summary>
-    /// Results for external components
-    /// </summary>
+
     public struct ComponentResult {
         public byte[] stdout;
         public int exitcode;
@@ -24,9 +23,7 @@ namespace dtl.Internal {
         mp4,
     }
 
-    public static class ProcessHandler
-    {
-
+    public static class ProcessHandler {
         public static string GetHWAccelCodec(GPUType gpuType, FileFormat format, CodecType ctype) => (gpuType, format, ctype) switch {
             (GPUType.NONE, FileFormat.mp4, CodecType.h264) => "libx264",
             (GPUType.NV, FileFormat.mp4, CodecType.h264) => "h264_nvenc",
@@ -49,85 +46,25 @@ namespace dtl.Internal {
             _ => null // if you know you know
         };
 
-        public static string GetFFMPEGFormat(string filename)
-        {
-            string fmt = Path.GetExtension(filename).ToLower().Replace(".", null).Trim();
-            switch (fmt)
-            {
-                case "opus":
-                    fmt = "ogg";
-                    break;
-                case "mkv":
-                    fmt = "matroska";
-                    break;
-                case "ay":
-                case "gbs":
-                case "gym":
-                case "hes":
-                case "kss":
-                case "nsf":
-                case "nsfe":
-                case "sap":
-                case "spc":
-                case "vgm":
-                case "vgz":
-                    fmt = "libgme";
-                    break;
-                case "mptm":
-                case "xm":
-                case "mod":
-                case "s3m":
-                case "it":
-                    fmt = "libmodplug";
-                    break;
-                default:
-                    break;
-            }
-            return fmt;
-        }
-
-
         /// <summary>
         /// furnace out an audio file
         /// </summary>
         /// <returns>a furnaced wav</returns>
-        public static async Task<ComponentResult> Furnace(string input, string outp, bool perchan = false, uint loops = 0, uint subsong = 0, CancellationToken ct = default)
-        {
-            using Process fpc = Process.Start(new ProcessStartInfo()
-            {
+        public static async Task<ComponentResult> Furnace(string input, string outp, bool perchan = false, uint loops = 0, uint subsong = 0, CancellationToken ct = default) {
+            using Process fpc = Process.Start(new ProcessStartInfo() {
                 FileName = ".core/components/furnace",
                 Arguments = $"-loglevel error -nostatus -subsong {subsong} -loops {loops} {(perchan ? "-outmode perchan" : null)} -output \"{outp}\" \"{input}\"",
                 UseShellExecute = false,
             });
             await fpc.WaitForExitAsync(ct).ConfigureAwait(false);
-            return new()
-            {
+            return new() {
                 exitcode = fpc.ExitCode,
                 message = "error message not available"
             };
         }
 
-        public static async Task<ComponentResult> ConvertMedia(string input, string output, string innerargs = null, string args = null) {
-            using Process fpc = Process.Start(new ProcessStartInfo()
-            {
-                FileName = "ffmpeg",
-                Arguments = $"-hide_banner -loglevel error -y {innerargs} -i \"{input}\" -threads {Environment.ProcessorCount} {args} \"{output}\"",
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-            });
-            await fpc.WaitForExitAsync().ConfigureAwait(false);
-            return new()
-            {
-                exitcode = fpc.ExitCode,
-                message = fpc.StandardError.ReadToEnd()
-            };
-        }
-
-        public static async Task<ComponentResult> ConvertMediaInternal(byte[] input, string format, string innerargs = null, string args = null, CancellationToken ct = default)
-        {
-            using Process fpc = Process.Start(new ProcessStartInfo()
-            {
+        public static async Task<ComponentResult> ConvertMediaInternal(byte[] input, string format, string innerargs = null, string args = null, CancellationToken ct = default) {
+            using Process fpc = Process.Start(new ProcessStartInfo() {
                 FileName = "ffmpeg",
                 Arguments = $"-hide_banner -loglevel error -y {innerargs} -i - -threads {Environment.ProcessorCount} {args} -f {format} -",
                 UseShellExecute = false,
@@ -135,54 +72,36 @@ namespace dtl.Internal {
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
             });
-            using Stream stdin = fpc.StandardInput.BaseStream;
-            using Stream stdout = fpc.StandardOutput.BaseStream;
+
             using MemoryStream output = new();
+            using MemoryStream errorOutput = new();
 
-            try
-            {
-                Task writer = Task.Run(async () =>
-                {
-                    await stdin.WriteAsync(input);
-                    await stdin.FlushAsync();
-                    stdin.Close();
-                }, ct);
+            try {
+                Task writerTask = WriteInputAsync(fpc.StandardInput.BaseStream, input);
+                Task outputReader = CopyStreamAsync(fpc.StandardOutput.BaseStream, output);
+                Task errorReader = CopyStreamAsync(fpc.StandardError.BaseStream, errorOutput);
 
-                Task reader = Task.Run(async () => {
-                    byte[] buffer = new byte[8192];
-
-                    int l;
-                    while ((l = await stdout.ReadAsync(buffer)) > 0)
-                    {
-                        await output.WriteAsync(buffer.AsMemory(0, l));
-                    }
-                }, ct);
-
-                await fpc.WaitForExitAsync(ct).ConfigureAwait(false);
-                await Task.WhenAll(writer, reader);
+                await writerTask;
+                await Task.WhenAll(
+                    fpc.WaitForExitAsync(),
+                    outputReader,
+                    errorReader
+                );
+            } catch (Exception ex) {
+                Console.WriteLine($"Error during processing: {ex}");
+                if (!fpc.HasExited)
+                    try { fpc.Kill(); } catch {}
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex);
-            }
-            finally
-            {
-                await output.FlushAsync(ct);
-                stdin.Close();
-                stdout.Close();
-            }
-            return new()
-            {
+
+            return new ComponentResult {
                 stdout = output.ToArray(),
                 exitcode = fpc.ExitCode,
-                message = fpc.StandardError.ReadToEnd()
+                message = Encoding.UTF8.GetString(errorOutput.ToArray())
             };
         }
 
-        public static async Task<ComponentResult> ConvertMediaStdOut(string input, string format, string innerargs = null, string args = null, CancellationToken ct = default)
-        {
-            using Process fpc = Process.Start(new ProcessStartInfo()
-            {
+        public static async Task<ComponentResult> ConvertMediaStdOut(string input, string format, string innerargs = null, string args = null, CancellationToken ct = default) {
+            using Process fpc = Process.Start(new ProcessStartInfo() {
                 FileName = "ffmpeg",
                 Arguments = $"-hide_banner -loglevel error -y {innerargs} -i \"{input}\" {args} -f {format} -",
                 UseShellExecute = false,
@@ -190,116 +109,32 @@ namespace dtl.Internal {
                 RedirectStandardError = true,
             });
 
-            using Stream stdout = fpc.StandardOutput.BaseStream;
             using MemoryStream output = new();
-            try
-            {
-                await Task.Run(async () => {
-                    byte[] buffer = new byte[8192];
+            using MemoryStream errorOutput = new();
 
-                    int l;
-                    while ((l = await stdout.ReadAsync(buffer)) > 0)
-                    {
-                        await output.WriteAsync(buffer.AsMemory(0, l));
-                    }
-                }, ct);
-                await fpc.WaitForExitAsync(ct).ConfigureAwait(false);
+            try {
+                Task outputReader = CopyStreamAsync(fpc.StandardOutput.BaseStream, output);
+                Task errorReader = CopyStreamAsync(fpc.StandardError.BaseStream, errorOutput);
+                await Task.WhenAll(
+                    fpc.WaitForExitAsync(),
+                    outputReader,
+                    errorReader
+                );
+            } catch (Exception ex) {
+                Console.WriteLine($"Error during processing: {ex}");
+                if (!fpc.HasExited)
+                    try { fpc.Kill(); } catch {}
             }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex);
-            }
-            finally
-            {
-                await output.FlushAsync(ct);
-                stdout.Close();
-            }
-            return new()
-            {
-                exitcode = fpc.ExitCode,
-                message = fpc.StandardError.ReadToEnd(),
+
+            return new ComponentResult {
                 stdout = output.ToArray(),
-            };
-        }
-
-        public static async Task<ComponentResult> ConvertWebMedia(string input, string output, string innerargs = null, string args = null)
-        {
-            using Process fpc = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-                ? Process.Start(new ProcessStartInfo()
-                {
-                    FileName = "cmd",
-                    Arguments = $"/C \"\".core/components/yt-dlp\" -o - \"{input}\" | ffmpeg -hide_banner -loglevel panic {innerargs} -i pipe:0 {args} {output}\"",
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true
-                })
-                : Process.Start(new ProcessStartInfo()
-                {
-                    FileName = "bash",
-                    Arguments = $"-c \".core/components/yt-dlp -o - \\\"{input}\\\" | ffmpeg -hide_banner -loglevel panic {innerargs} -i pipe:0 {args} {output}\"",
-                    UseShellExecute = false,
-                    RedirectStandardOutput = true,
-                    RedirectStandardError = true,
-                    CreateNoWindow = true
-                });
-            await fpc.WaitForExitAsync().ConfigureAwait(false);
-            return new()
-            {
                 exitcode = fpc.ExitCode,
-                message = fpc.StandardError.ReadToEnd()
+                message = Encoding.UTF8.GetString(errorOutput.ToArray())
             };
         }
 
-        /// <summary>
-        /// Method that downloads secured videos from various websites
-        /// </summary>
-        public static async Task<ComponentResult> DownloadVideo(string input, string innerargs = null, string args = null)
-        {
-            using Process fpc = Process.Start(new ProcessStartInfo()
-            {
-                FileName = ".core/components/yt-dlp",
-                Arguments = $"{innerargs} \"{input}\" {args} -o -",
-                UseShellExecute = false,
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-            });
-            using Stream stdout = fpc.StandardOutput.BaseStream;
-            using MemoryStream output = new();
-            try
-            {
-                await Task.Run(async () => {
-                    byte[] buffer = new byte[8192];
-
-                    int l;
-                    while ((l = await stdout.ReadAsync(buffer)) > 0)
-                    {
-                        await output.WriteAsync(buffer.AsMemory(0, l));
-                    }
-                });
-                await fpc.WaitForExitAsync().ConfigureAwait(false);
-            }
-            catch (Exception ex)
-            {
-                Console.WriteLine(ex);
-            }
-            finally
-            {
-                await output.FlushAsync();
-                stdout.Close();
-            }
-            return new()
-            {
-                exitcode = fpc.ExitCode,
-                message = fpc.StandardError.ReadToEnd(),
-                stdout = output.ToArray(),
-            };
-        }
-
-        public static async Task<ComponentResult> RenderCorrscopeVideo(string input = null, string o = null, CancellationToken ct = default)
-        {
-            using Process fpc = Process.Start(new ProcessStartInfo()
-            {
+        public static async Task<ComponentResult> RenderCorrscopeVideo(string input = null, string o = null, CancellationToken ct = default) {
+            using Process fpc = Process.Start(new ProcessStartInfo() {
                 FileName = "corr",
                 Arguments = $"\"{input}\" -r \"{o}\"",
                 UseShellExecute = false,
@@ -307,17 +142,14 @@ namespace dtl.Internal {
                 RedirectStandardError = true,
             });
             await fpc.WaitForExitAsync(ct).ConfigureAwait(false);
-            return new()
-            {
+            return new() {
                 exitcode = fpc.ExitCode,
                 message = fpc.StandardError.ReadToEnd()
             };
         }
 
-        public static async Task<ComponentResult> Sid2Wav(string directory, string input = null, string o = null, string innerargs = null, CancellationToken ct = default)
-        {
-            using Process fpc = Process.Start(new ProcessStartInfo()
-            {
+        public static async Task<ComponentResult> Sid2Wav(string directory, string input = null, string o = null, string innerargs = null, CancellationToken ct = default) {
+            using Process fpc = Process.Start(new ProcessStartInfo() {
                 FileName = "sidplayfp",
                 Arguments = $"{innerargs} -w\"{o}\" \"{input}\"",
                 UseShellExecute = false,
@@ -330,24 +162,20 @@ namespace dtl.Internal {
             };
         }
 
-        public static async Task<ComponentResult> VGMSplit(string path, string outputpath, uint subsong = 0, bool dontsplit = true, CancellationToken ct = default)
-        {
-            using Process fpc = Process.Start(new ProcessStartInfo()
-            {
+        public static async Task<ComponentResult> VGMSplit(string path, string outputpath, uint subsong = 0, bool dontsplit = true, CancellationToken ct = default) {
+            using Process fpc = Process.Start(new ProcessStartInfo() {
                 FileName = "vgmsplit",
                 Arguments = $"{(dontsplit ? " --no-parallel" : null)} \"{path}\" {subsong + 1}",
                 UseShellExecute = false,
                 WorkingDirectory = outputpath,
             });
             await fpc.WaitForExitAsync(ct).ConfigureAwait(false);
-            return new()
-            {
+            return new() {
                 exitcode = fpc.ExitCode,
             };
         }
 
-        public static async Task<ComponentResult> MidiToAudio(string input, string path, CancellationToken ct = default)
-        {
+        public static async Task<ComponentResult> MidiToAudio(string input, string path, CancellationToken ct = default) {
             using Process fpc = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
                 ? Process.Start(new ProcessStartInfo()
                 {
@@ -379,11 +207,9 @@ namespace dtl.Internal {
             };
         }
 
-        public static async Task<ComponentResult> MidiToAudioInternal(byte[] input, string format, CancellationToken ct = default)
-        {
+        public static async Task<ComponentResult> MidiToAudioInternal(byte[] input, string format, CancellationToken ct = default) {
             using Process fpc = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
-                ? Process.Start(new ProcessStartInfo()
-                {
+                ? Process.Start(new ProcessStartInfo() {
                     FileName = "cmd",
                     Arguments = $"/C \"timidity - -Ow --config-string \"soundfont .core/gm.sf2\" -o - | ffmpeg -hide_banner -loglevel error -i - -f {format}\" -",
                     UseShellExecute = false,
@@ -391,9 +217,7 @@ namespace dtl.Internal {
                     RedirectStandardError = true,
                     RedirectStandardInput = true,
                     CreateNoWindow = true
-                })
-                : Process.Start(new ProcessStartInfo()
-                {
+                }) : Process.Start(new ProcessStartInfo() {
                     FileName = "bash",
                     Arguments = $"-c \"timidity - -Ow --config-string \"soundfont .core/gm.sf2\" -o - | ffmpeg -hide_banner -loglevel error -i - -f {format} -",
                     UseShellExecute = false,
@@ -402,46 +226,47 @@ namespace dtl.Internal {
                     RedirectStandardInput = true,
                     CreateNoWindow = true
                 });
-            using Stream stdin = fpc.StandardInput.BaseStream;
-            using Stream stdout = fpc.StandardOutput.BaseStream;
+
             using MemoryStream output = new();
+            using MemoryStream errorOutput = new();
 
-            try
-            {
-                Task writer = Task.Run(async () =>
-                {
-                    await stdin.WriteAsync(input);
-                    await stdin.FlushAsync();
-                    stdin.Close();
-                }, ct);
+            try {
+                Task writerTask = WriteInputAsync(fpc.StandardInput.BaseStream, input);
+                Task outputReader = CopyStreamAsync(fpc.StandardOutput.BaseStream, output);
+                Task errorReader = CopyStreamAsync(fpc.StandardError.BaseStream, errorOutput);
 
-                Task reader = Task.Run(async () =>
-                {
-                    const int chunkSize = 8192;
-                    byte[] buffer = new byte[chunkSize];
-
-                    int l;
-                    while ((l = await stdout.ReadAsync(buffer)) > 0)
-                    {
-                        await output.WriteAsync(buffer.AsMemory(0, l));
-                    }
-                }, ct);
-
-                await fpc.WaitForExitAsync(ct);
-                await Task.WhenAll(writer, reader);
+                await writerTask;
+                await Task.WhenAll(
+                    fpc.WaitForExitAsync(),
+                    outputReader,
+                    errorReader
+                );
+            } catch (Exception ex) {
+                Console.WriteLine($"Error during processing: {ex}");
+                if (!fpc.HasExited)
+                    try { fpc.Kill(); } catch {}
             }
-            finally
-            {
-                stdin.Close();
-                stdout.Close();
-            }
-            await fpc.WaitForExitAsync(ct).ConfigureAwait(false);
-            return new()
-            {
+
+            return new ComponentResult {
                 stdout = output.ToArray(),
                 exitcode = fpc.ExitCode,
-                message = fpc.StandardError.ReadToEnd()
+                message = Encoding.UTF8.GetString(errorOutput.ToArray())
             };
+        }
+
+        private static async Task WriteInputAsync(Stream stdin, byte[] input) {
+            try {
+                await stdin.WriteAsync(input);
+                await stdin.FlushAsync();
+            } finally { stdin.Close(); }
+        }
+
+        private static async Task CopyStreamAsync(Stream source, MemoryStream destination) { // Oh My GOD Kill ME I N  S I  D  E
+            byte[] buffer = new byte[8192];
+            int bytesRead;
+            
+            while ((bytesRead = await source.ReadAsync(buffer)) > 0)
+                await destination.WriteAsync(buffer.AsMemory(0, bytesRead));
         }
     }
 }
