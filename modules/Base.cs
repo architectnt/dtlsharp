@@ -33,10 +33,10 @@ namespace dtl.modules {
         [SlashCommand("dtlrend", "convert chiptune to audio")]
         public async Task Fur2mp3(IAttachment attachment = null, string url = null, FileFormat format = FileFormat.mp3, uint subsong = 0, uint loopsOrDuration = 0, CodecType codecType = CodecType.h264, Resolution res = Resolution.FHD) {
             List<string> 
-                furmats = [".ftm", ".dmf", ".fc13", ".fc14", ".mod", ".fc", ".0cc", ".dnm", ".eft", ".fub", ".fte", ".fur"], 
+                furmats = [".ftm", ".dmf", ".fc13", ".fc14", ".fc", ".0cc", ".dnm", ".eft", ".fub", ".fte", ".fur"], 
                 midi = [".mid", ".midi"], 
                 sid = [".sid"],
-                libmodplug = [".mptm", ".xm", ".s3m", ".it"],
+                libmodplug = [".mptm", ".xm", ".s3m", ".it", ".mod"],
                 libgme = [".ay", ".gbs", ".gym", ".hes", ".kss", ".nsf", ".nsfe", ".sap", ".spc", ".vgm", ".vgz"];
 
             int i, j, len = 0;
