@@ -175,6 +175,18 @@ namespace dtl.Internal {
             };
         }
 
+        public static async Task<ComponentResult> MPTSplit(string path, string outputpath, uint loops = 0, bool dontsplit = true, CancellationToken ct = default) {
+            using Process fpc = Process.Start(new ProcessStartInfo() {
+                FileName = "mptsplit",
+                Arguments = $"-i \"{path}\" -ofn {outputpath} {(dontsplit ? " -master" : null)} {(loops > 0 ? $"-loops {loops}" : null)}",
+                UseShellExecute = false,
+            });
+            await fpc.WaitForExitAsync(ct).ConfigureAwait(false);
+            return new() {
+                exitcode = fpc.ExitCode,
+            };
+        }
+
         public static async Task<ComponentResult> MidiToAudio(string input, string path, CancellationToken ct = default) {
             using Process fpc = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
                 ? Process.Start(new ProcessStartInfo()

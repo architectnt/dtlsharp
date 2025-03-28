@@ -151,14 +151,12 @@ namespace dtl.modules {
                                 m.Components = cns.Build();
                             });
 
-                            if (oscRender)
-                            {
-                                File.WriteAllBytes($"{tmpfoldr}/{n}", dt);
-                                ulong s = Random256.Value;
-                                string what = $"{tmpfoldr}/{s}.wav";
-                                r = await ProcessHandler.Furnace($"{tmpfoldr}/{n}", what, oscRender, loopsOrDuration, subsong, cf.Token);
-                            }
-                            else r = await ProcessHandler.ConvertMediaStdOut(curl, "wav", $"-f libmodplug", ct: cf.Token);
+                            File.WriteAllBytes($"{tmpfoldr}/{n}", dt);
+                            ulong s = Random256.Value;
+                            string what = $"{tmpfoldr}/{s}";
+                            r = await ProcessHandler.MPTSplit($"{tmpfoldr}/{n}", what, loopsOrDuration, !oscRender, cf.Token);
+                            if (!oscRender)
+                                r = await ProcessHandler.ConvertMediaStdOut($"{tmpfoldr}/{s}_master.wav", "wav", ct: cf.Token);
                         }
                         else if (libgme.Contains(ext))
                         {
