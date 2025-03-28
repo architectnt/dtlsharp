@@ -249,7 +249,7 @@ namespace dtl.modules {
                                         if (mp > lchn) lchn = mp;
                                     }
                                     float ampc = ((float)short.MaxValue / lchn) * 0.85f;
-                                    outputdt.Add((WavUtility.Export(samples, 44100, 2, 16), $"{i}.wav", ampc, DateTimeOffset.Now.ToUnixTimeSeconds()));
+                                    outputdt.Add((WavUtility.Export(samples, 44100, 2), $"{i}.wav", ampc, DateTimeOffset.Now.ToUnixTimeSeconds()));
                                 }
                                 channels.Add(samples);
                             }
@@ -272,7 +272,7 @@ namespace dtl.modules {
                             }
                             AudioClip clip = LibAAFC.Import(LibAAFC.Export(mst, 2, 44100, nm: true), null);
                             short[] outp = clip.ToShortSamples();
-                            outputdt.Add((WavUtility.Export(outp, 44100, 2, 16), "master.wav", 0, DateTimeOffset.Now.ToUnixTimeSeconds()));
+                            outputdt.Add((WavUtility.Export(outp, 44100, 2), "master.wav", 0, DateTimeOffset.Now.ToUnixTimeSeconds()));
 
                             API.modulecache[hash] = outputdt;
                             clip.Dispose();

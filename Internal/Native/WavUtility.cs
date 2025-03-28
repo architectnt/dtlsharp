@@ -9,111 +9,78 @@ using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace dtl.Internal.Native
-{
-    [StructLayout(LayoutKind.Sequential, Pack = 1)]
-    public struct WavHeader
-    {
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-        public byte[] ChunkID;
-        public uint ChunkSize;
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-        public byte[] Format;
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-        public byte[] Subchunk1ID;
-        public uint Subchunk1Size;
-        public ushort AudioFormat;
-        public ushort NumChannels;
-        public uint SampleRate;
-        public uint ByteRate;
-        public ushort BlockAlign;
-        public ushort BitsPerSample;
-        [MarshalAs(UnmanagedType.ByValArray, SizeConst = 4)]
-        public byte[] Subchunk2ID;
-        public uint Subchunk2Size;
-    }
+namespace dtl.Internal.Native {
+    public static unsafe class WavUtility {
+        public static byte[] Export<T>(T data, uint freq, byte channels) {
+            byte bitsPerSample = GetBpsValue<T>();
+            ushort bytesPerSample = (ushort)(bitsPerSample / 8);
+            uint sampleCount = GetLength(data);
+            uint dataSize = sampleCount * bytesPerSample;
 
-    public static unsafe class WavUtility
-    {
-        public static byte[] Export(Array data, int freq, byte channels, int bitsPerSample)
-        {
-            if (bitsPerSample != 8 && bitsPerSample != 16)
-                throw new ArgumentException("Only 8-bit and 16-bit samples are supported.");
+            byte[] wavFile = new byte[44 + dataSize];
+            fixed (byte* ptr = wavFile) {
+                byte* h = ptr;
+                WriteId(h, "RIFF"); h += 4;
+                *(uint*)h = 36 + dataSize; h += 4;
+                WriteId(h, "WAVE"); h += 4;
+                WriteId(h, "fmt "); h += 4;
+                *(uint*)h = 16; h += 4;
+                *(ushort*)h = 1; h += 2;
+                *(ushort*)h = channels; h += 2;
+                *(uint*)h = freq; h += 4;
+                *(uint*)h = freq * channels * bytesPerSample; h += 4;
+                *(ushort*)h = (ushort)(channels * bytesPerSample); h += 2;
+                *(ushort*)h = bitsPerSample; h += 2;
+                WriteId(h, "data"); h += 4;
+                *(uint*)h = dataSize; h += 4;
 
-            int bytesPerSample = bitsPerSample / 8;
+                byte* audioDst = ptr + 44;
+                switch (bitsPerSample) {
+                    case 16: {
+                        short[] shortData = data as short[]
+                            ?? throw new ArgumentException("input array must be short[] (16 bit)");
 
-            WavHeader header = new()
-            {
-                ChunkID = "RIFF"u8.ToArray(),
-                Format = "WAVE"u8.ToArray(),
-                Subchunk1ID = "fmt "u8.ToArray(),
-                Subchunk1Size = 16,
-                AudioFormat = 1,
-                NumChannels = channels,
-                SampleRate = (uint)freq,
-                ByteRate = (uint)(freq * channels * bytesPerSample),
-                BlockAlign = (ushort)(channels * bytesPerSample),
-                BitsPerSample = (ushort)bitsPerSample,
-                Subchunk2ID = "data"u8.ToArray(),
-                Subchunk2Size = (uint)(data.Length * bytesPerSample)
-            };
+                        fixed (short* pData = shortData)
+                            Buffer.MemoryCopy(pData, audioDst, dataSize, dataSize);
 
-            header.ChunkSize = 36 + header.Subchunk2Size;
+                        break;
+                    }
+                    case 8: {
+                        byte[] byteData = data as byte[]
+                            ?? throw new ArgumentException("input array must be byte[] (8 bit)");
 
-            byte[] wavFile = new byte[Marshal.SizeOf(header) + data.Length * bytesPerSample];
+                        fixed (byte* pData = byteData)
+                            Buffer.MemoryCopy(pData, audioDst, dataSize, dataSize);
 
-            IntPtr ptr = Marshal.AllocHGlobal(Marshal.SizeOf(header));
-            Marshal.StructureToPtr(header, ptr, false);
-            Marshal.Copy(ptr, wavFile, 0, Marshal.SizeOf(header));
-            Marshal.FreeHGlobal(ptr);
-
-            // Unsafe context for copying data
-            fixed (byte* p = &wavFile[Marshal.SizeOf(header)])
-            {
-                switch (bitsPerSample)
-                {
-                    case 16:
-                        {
-                            short[] shortData = (short[])data;
-
-                            fixed (short* pData = &shortData[0])
-                            {
-                                short* pSrc = pData;
-                                byte* pDst = p;
-
-                                for (int i = 0; i < shortData.Length; i++)
-                                {
-                                    *(short*)pDst = *pSrc;
-                                    pDst += 2;
-                                    pSrc++;
-                                }
-                            }
-
-                            break;
-                        }
-                    case 8:
-                        {
-                            byte[] byteData = (byte[])data;
-
-                            fixed (byte* pData = &byteData[0])
-                            {
-                                byte* pSrc = pData;
-                                byte* pDst = p;
-
-                                for (int i = 0; i < byteData.Length; i++)
-                                {
-                                    *pDst = *pSrc;
-                                    pDst++;
-                                    pSrc++;
-                                }
-                            }
-
-                            break;
-                        }
+                        break;
+                    }
+                    default:
+                        throw new ArgumentException("8 and 16 bit is only supported");
                 }
             }
-
             return wavFile;
+        }
+
+        static unsafe void WriteId(byte* destination, string source) {
+            if (source.Length < 4)
+                throw new ArgumentException("riff id string must be 4 characters long.");
+            for (int i = 0; i < 4; i++)
+                *(destination + i) = (byte)source[i];
+        }
+
+        static byte GetBpsValue<T>() {
+            if (typeof(T).GetElementType() == typeof(short)) return 16;
+            if (typeof(T).GetElementType() == typeof(byte)) return 8;
+            throw new ArgumentException("unsupported audio type");
+        }
+
+        static uint GetLength<T>(T data) {
+            if (data is Array array)
+                return (uint)array.LongLength;
+            else if (data is IEnumerable<object> enumerable)
+                return (uint)enumerable.LongCount();
+
+            return 0;
         }
     }
 

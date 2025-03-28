@@ -9,6 +9,7 @@
 - .NET 8 (runtime & sdk)
 - [ffmpeg](https://www.ffmpeg.org/)
 - [vgmsplit (may need to compile from source)](https://github.com/nyanpasu64/vgmsplit)
+- [mptsplit](https://github.com/architectnt/mptsplit)
 
 ## setting up
 1. install .NET
