@@ -26,6 +26,7 @@ namespace dtl.Internal {
                 "audio_template",
                 "video_template",
                 "ChannelConfig",
+                "channels:",
             ];
             return string.Join("\n", lines.Where(l => !s.Any(k => l.Contains(k))).ToArray());
         }
