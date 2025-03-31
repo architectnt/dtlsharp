@@ -27,7 +27,7 @@ namespace dtl.Internal {
                 "video_template",
                 "ChannelConfig",
             ];
-            return string.Join("\n", lines.Where(l => !s.Any(k => lines.Contains(k))).ToArray());
+            return string.Join("\n", lines.Where(l => !s.Any(k => l.Contains(k))).ToArray());
         }
 
         public static string CreateOverrides(string f, FileFormat format, CodecType codec, string masterpath, CorrscopeEntry[] channels, uint x, uint y) {
