@@ -31,7 +31,7 @@ namespace dtl.modules {
     {
 
         [SlashCommand("dtlrend", "convert chiptune to audio")]
-        public async Task Fur2mp3(IAttachment attachment = null, string url = null, FileFormat format = FileFormat.mp3, uint subsong = 0, uint loopsOrDuration = 0, CodecType codecType = CodecType.h264, Resolution res = Resolution.FHD) {
+        public async Task Fur2mp3(IAttachment attachment = null, string url = null, FileFormat format = FileFormat.mp3, uint subsong = 0, uint loopsOrDuration = 0, CodecType codecType = CodecType.h264, Resolution res = Resolution.FHD, IAttachment corrscopeOverrideConfig = null) {
             List<string> 
                 furmats = [".ftm", ".dmf", ".fc13", ".fc14", ".fc", ".0cc", ".dnm", ".eft", ".fub", ".fte", ".fur"], 
                 midi = [".mid", ".midi"], 
@@ -304,7 +304,12 @@ namespace dtl.modules {
                         };
 
                         cff = "Rendering oscilloscope video";
-                        await File.WriteAllTextAsync($"{tmpfoldr}/osc.yaml", CorrscopeWrapper.CreateCorrscopeOverrides(format, codecType, $"{Directory.GetCurrentDirectory()}/{tmpfoldr}/master.wav", [.. entries], w, h), cf.Token);
+                        
+                        string f = corrscopeOverrideConfig == null ?
+                             File.ReadAllText(".core/fus_osc_config.yaml") 
+                             : CorrscopeWrapper.StripUnwanted(await WebClient.GetText(corrscopeOverrideConfig.Url));
+                             
+                        await File.WriteAllTextAsync($"{tmpfoldr}/osc.yaml", CorrscopeWrapper.CreateOverrides(f, format, codecType, $"{Directory.GetCurrentDirectory()}/{tmpfoldr}/master.wav", [.. entries], w, h), cf.Token);
                         await ModifyOriginalResponseAsync(m => m.Content = cff);
 
                         r = await ProcessHandler.RenderCorrscopeVideo($"{tmpfoldr}/osc.yaml", $"{tmpfoldr}/oscoutp.{format}", cf.Token);

@@ -12,9 +12,25 @@ namespace dtl.Internal {
     }
 
     public static class CorrscopeWrapper {
-        public static string CreateCorrscopeOverrides(FileFormat format, CodecType codec, string masterpath, CorrscopeEntry[] channels, uint x, uint y)
-        {
-            string f = File.ReadAllText(".core/fus_osc_config.yaml");
+        public static string StripUnwanted(string f){
+            string[] lines = f.Split(["\r\n","\r","\n"], StringSplitOptions.None);
+            string[] s = [
+                "width", 
+                "height", 
+                "ffmpeg_cli", 
+                "path", 
+                "wav_path", 
+                "master_audio", 
+                "label", 
+                "amplification",
+                "audio_template",
+                "video_template",
+                "ChannelConfig",
+            ];
+            return string.Join("\n", lines.Where(l => !s.Any(k => lines.Contains(k))).ToArray());
+        }
+
+        public static string CreateOverrides(string f, FileFormat format, CodecType codec, string masterpath, CorrscopeEntry[] channels, uint x, uint y) {
             f += $"  width: {x}\n  height: {y}\n";
             f += "ffmpeg_cli: !FFmpegOutputConfig\n" +
                 "  path: \n" +
