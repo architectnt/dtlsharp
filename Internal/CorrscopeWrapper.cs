@@ -15,8 +15,8 @@ namespace dtl.Internal {
         public static string StripUnwanted(string f){
             string[] lines = f.Split(["\r\n","\r","\n"], StringSplitOptions.None);
             string[] s = [
-                "width", 
-                "height", 
+                "  width", 
+                "  height", 
                 "ffmpeg_cli", 
                 "path", 
                 "wav_path", 
