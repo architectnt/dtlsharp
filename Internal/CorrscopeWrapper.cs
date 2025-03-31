@@ -21,7 +21,7 @@ namespace dtl.Internal {
                 "path", 
                 "wav_path", 
                 "master_audio", 
-                "label", 
+                "label:", 
                 "amplification",
                 "audio_template",
                 "video_template",
