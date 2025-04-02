@@ -192,16 +192,16 @@ namespace dtl.Internal {
                 ? Process.Start(new ProcessStartInfo()
                 {
                     FileName = "cmd",
-                    Arguments = $"/C \"timidity \"{input}\" -Ow --config-string \"soundfont .core/gm.sf2\" -o - | ffmpeg -hide_banner -loglevel error -i - \"{path}\"\"",
+                    Arguments = $"/C \"timidity \"{input}\" -Ow --config-file=\".core/timidity.cfg\" -o - | ffmpeg -hide_banner -loglevel error -i - \"{path}\"\"",
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
                     CreateNoWindow = true
                 })
                 : Process.Start(new ProcessStartInfo()
-                {
+                { // your absolute paths requirement sucks
                     FileName = "bash",
-                    Arguments = $"-c \"timidity \\\"{input}\\\" -Ow --config-string \\\"soundfont .core/gm.sf2\\\" -o - | ffmpeg -hide_banner -loglevel error -i - \\\"{path}\\\"\"",
+                    Arguments = $"-c \"timidity \\\"{input}\\\" -Ow --config-file=\\\".core/timidity.cfg\\\" -o - | ffmpeg -hide_banner -loglevel error -i - \\\"{path}\\\"\"",
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
@@ -223,7 +223,7 @@ namespace dtl.Internal {
             using Process fpc = RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
                 ? Process.Start(new ProcessStartInfo() {
                     FileName = "cmd",
-                    Arguments = $"/C \"timidity - -Ow --config-string \"soundfont .core/gm.sf2\" -o - | ffmpeg -hide_banner -loglevel error -i - -f {format}\" -",
+                    Arguments = $"/C \"timidity - -Ow --config-file=\".core/timidity.cfg\" -o - | ./ffmpeg -hide_banner -loglevel error -i - -f {format}\" -",
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
@@ -231,7 +231,7 @@ namespace dtl.Internal {
                     CreateNoWindow = true
                 }) : Process.Start(new ProcessStartInfo() {
                     FileName = "bash",
-                    Arguments = $"-c \"timidity - -Ow --config-string \"soundfont .core/gm.sf2\" -o - | ffmpeg -hide_banner -loglevel error -i - -f {format} -",
+                    Arguments = $"-c \"timidity - -Ow --config-file=\\\".core/timidity.cfg\\\" -o - | ./ffmpeg -hide_banner -loglevel error -i - -f {format} -",
                     UseShellExecute = false,
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,

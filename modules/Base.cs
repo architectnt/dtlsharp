@@ -414,9 +414,9 @@ namespace dtl.modules {
                         string fn = $"{Path.GetFileNameWithoutExtension(n)}.{format}";
                         sw.Stop();
                         processing = false;
+                        if (r.exitcode != 0) goto failure;
                         cff = "finishing..";
                         string externurl = null;
-                        if (r.exitcode != 0) goto failure;
                         t = await ModifyOriginalResponseAsync(m => {
                             m.Content = cff;
                             m.Components = cns.Build();
