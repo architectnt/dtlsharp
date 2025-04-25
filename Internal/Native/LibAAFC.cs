@@ -62,7 +62,7 @@ namespace dtl.Internal.Native
         [LibraryImport(AAFCPATH)]
         private static partial AAFCDECOUTPUT aafc_import(byte* data);
         [LibraryImport(AAFCPATH)]
-        private static partial AAFCOUTPUT aafc_export(float* samples, uint freq, uint channels, uint samplelength, byte bps = 16, byte sampletype = 1, [MarshalAs(UnmanagedType.Bool)] bool forcemono = false, uint samplerateoverride = 0, [MarshalAs(UnmanagedType.Bool)] bool nm = false, float pitch = 1);
+        private static partial AAFCOUTPUT aafc_export(float* samples, uint freq, uint channels, uint samplelength, byte bps = 16, byte sampletype = 1, [MarshalAs(UnmanagedType.Bool)] bool forcemono = false, uint samplerateoverride = 0, [MarshalAs(UnmanagedType.Bool)] bool nm = false, float pitch = 1, [MarshalAs(UnmanagedType.Bool)] bool nointerp = false);
         [LibraryImport(AAFCPATH)]
         private static partial IntPtr aafc_getheader(byte* data);
         [LibraryImport(AAFCPATH)]
@@ -73,21 +73,23 @@ namespace dtl.Internal.Native
         public static partial IntPtr aafc_resample_data(float* input, uint samplerateoverride, AAFC_HEADER* h, float pitch = 1, [MarshalAs(UnmanagedType.Bool)] bool nointerp = false);
         [LibraryImport(AAFCPATH)]
         public static partial IntPtr aafc_normalize(float* arr, AAFC_HEADER* h);
+        [DllImport(AAFCPATH)]
+        public static extern void aafc_nativefree(IntPtr ptr);
 
 
-        public static byte[] Export(float[] samples, uint channels, uint samplerate, bool mono = false, byte bps = 16, byte sampletype = 1, uint sproverride = 0, bool nm = false, float pitch = 1)
+        public static byte[] Export(float[] samples, uint channels, uint samplerate, bool mono = false, byte bps = 16, byte sampletype = 1, uint sproverride = 0, bool nm = false, float pitch = 1, bool nointerp = false)
         {
             fixed (float* fptr = samples)
             {
-                AAFCOUTPUT afo = aafc_export(fptr, samplerate, channels, (uint)samples.LongLength, bps, sampletype, mono, sproverride, nm, pitch);
+                AAFCOUTPUT afo = aafc_export(fptr, samplerate, channels, (uint)samples.LongLength, bps, sampletype, mono, sproverride, nm, pitch, nointerp);
                 byte[] rst = new byte[afo.size];
                 Marshal.Copy((IntPtr)afo.data, rst, 0, (int)afo.size);
-                Marshal.FreeHGlobal((IntPtr)afo.data);
+                aafc_nativefree((IntPtr)afo.data);
                 return rst;
             }
         }
 
-        public static byte[] Export(byte[] isamples, uint channels, uint samplerate, bool mono = false, byte bps = 16, byte sampletype = 1, uint sproverride = 0, bool nm = false, float pitch = 1)
+        public static byte[] Export(byte[] isamples, uint channels, uint samplerate, bool mono = false, byte bps = 16, byte sampletype = 1, uint sproverride = 0, bool nm = false, float pitch = 1, bool nointerp = false)
         {
             float[] samples = new float[isamples.LongLength];
             fixed (byte* ptr = isamples)
@@ -95,15 +97,15 @@ namespace dtl.Internal.Native
 
             fixed (float* fptr = samples)
             {
-                AAFCOUTPUT afo = aafc_export(fptr, samplerate, channels, (uint)samples.LongLength, bps, sampletype, mono, sproverride, nm, pitch);
+                AAFCOUTPUT afo = aafc_export(fptr, samplerate, channels, (uint)samples.LongLength, bps, sampletype, mono, sproverride, nm, pitch, nointerp);
                 byte[] rst = new byte[afo.size];
                 Marshal.Copy((IntPtr)afo.data, rst, 0, (int)afo.size);
-                Marshal.FreeHGlobal((IntPtr)afo.data);
+                aafc_nativefree((IntPtr)afo.data);
                 return rst;
             }
         }
 
-        public static byte[] Export(short[] isamples, uint channels, uint samplerate, bool mono = false, byte bps = 16, byte sampletype = 1, uint sproverride = 0, bool nm = false, float pitch = 1)
+        public static byte[] Export(short[] isamples, uint channels, uint samplerate, bool mono = false, byte bps = 16, byte sampletype = 1, uint sproverride = 0, bool nm = false, float pitch = 1, bool nointerp = false)
         {
             float[] samples = new float[isamples.LongLength];
             fixed (short* ptr = isamples)
@@ -111,15 +113,15 @@ namespace dtl.Internal.Native
 
             fixed (float* fptr = samples)
             {
-                AAFCOUTPUT afo = aafc_export(fptr, samplerate, channels, (uint)samples.LongLength, bps, sampletype, mono, sproverride, nm, pitch);
+                AAFCOUTPUT afo = aafc_export(fptr, samplerate, channels, (uint)samples.LongLength, bps, sampletype, mono, sproverride, nm, pitch, nointerp);
                 byte[] rst = new byte[afo.size];
                 Marshal.Copy((IntPtr)afo.data, rst, 0, (int)afo.size);
-                Marshal.FreeHGlobal((IntPtr)afo.data);
+                aafc_nativefree((IntPtr)afo.data);
                 return rst;
             }
         }
 
-        public static byte[] Export(int[] isamples, uint channels, uint samplerate, bool mono = false, byte bps = 16, byte sampletype = 1, uint sproverride = 0, bool nm = false, float pitch = 1)
+        public static byte[] Export(int[] isamples, uint channels, uint samplerate, bool mono = false, byte bps = 16, byte sampletype = 1, uint sproverride = 0, bool nm = false, float pitch = 1, bool nointerp = false)
         {
             float[] samples = new float[isamples.LongLength];
             fixed (int* ptr = isamples)
@@ -127,10 +129,10 @@ namespace dtl.Internal.Native
 
             fixed (float* fptr = samples)
             {
-                AAFCOUTPUT afo = aafc_export(fptr, samplerate, channels, (uint)samples.LongLength, bps, sampletype, mono, sproverride, nm, pitch);
+                AAFCOUTPUT afo = aafc_export(fptr, samplerate, channels, (uint)samples.LongLength, bps, sampletype, mono, sproverride, nm, pitch, nointerp);
                 byte[] rst = new byte[afo.size];
                 Marshal.Copy((IntPtr)afo.data, rst, 0, (int)afo.size);
-                Marshal.FreeHGlobal((IntPtr)afo.data);
+                aafc_nativefree((IntPtr)afo.data);
                 return rst;
             }
         }
@@ -178,17 +180,17 @@ namespace dtl.Internal.Native
             Samples = samples;
         }
 
-        public void Resample(uint newSampleRate, float pitch = 1)
+        public void Resample(uint newSampleRate, float pitch = 1, bool nointerp = false)
         {
             if (newSampleRate == h.freq && pitch == 1) return;
             fixed (LibAAFC.AAFC_HEADER* ptr = &h)
             {
                 float* rsptr = Samples;
-                IntPtr newSamplesPtr = LibAAFC.aafc_resample_data(rsptr, newSampleRate, ptr, pitch);
+                IntPtr newSamplesPtr = LibAAFC.aafc_resample_data(rsptr, newSampleRate, ptr, pitch, nointerp);
                 if (newSamplesPtr != IntPtr.Zero)
                 {
                     if (Samples != null)
-                        Marshal.FreeHGlobal((IntPtr)Samples);
+                        LibAAFC.aafc_nativefree((IntPtr)Samples);
                     Samples = (float*)newSamplesPtr;
                 }
             }
@@ -203,7 +205,7 @@ namespace dtl.Internal.Native
                 if (newSamplesPtr != IntPtr.Zero)
                 {
                     if (Samples != null)
-                        Marshal.FreeHGlobal((IntPtr)Samples);
+                        LibAAFC.aafc_nativefree((IntPtr)Samples);
                     Samples = (float*)newSamplesPtr;
                 }
             }
@@ -236,7 +238,7 @@ namespace dtl.Internal.Native
             {
                 if (Samples != null)
                 {
-                    Marshal.FreeHGlobal((nint)Samples);
+                    LibAAFC.aafc_nativefree((nint)Samples);
                     Samples = null;
                 }
                 disposed = true;

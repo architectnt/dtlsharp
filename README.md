@@ -6,7 +6,7 @@
 - [Corrscope](https://github.com/corrscope/corrscope)
 - Timidity (midi rendering)
 - [Furnace](https://github.com/tildearrow/furnace) (duh)
-- .NET 8 (runtime & sdk)
+- .NET 9 (runtime & sdk)
 - [ffmpeg](https://www.ffmpeg.org/)
 - [vgmsplit (may need to compile from source)](https://github.com/nyanpasu64/vgmsplit)
 - [mptsplit](https://github.com/architectnt/mptsplit)

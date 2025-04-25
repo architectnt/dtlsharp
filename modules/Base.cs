@@ -33,11 +33,11 @@ namespace dtl.modules {
         [SlashCommand("dtlrend", "convert chiptune to audio")]
         public async Task Fur2mp3(IAttachment attachment = null, string url = null, FileFormat format = FileFormat.mp3, uint subsong = 0, uint loopsOrDuration = 0, CodecType codecType = CodecType.h264, Resolution res = Resolution.FHD, IAttachment corrscopeOverrideConfig = null) {
             List<string> 
-                furmats = [".ftm", ".dmf", ".fc13", ".fc14", ".fc", ".0cc", ".dnm", ".eft", ".fub", ".fte", ".fur"], 
+                furnacef = [".ftm", ".dmf", ".fc13", ".fc14", ".fc", ".0cc", ".dnm", ".eft", ".fub", ".fte", ".fur"], 
                 midi = [".mid", ".midi"], 
                 sid = [".sid"],
-                libmodplug = [".mptm", ".xm", ".s3m", ".it", ".mod"],
-                libgme = [".ay", ".gbs", ".gym", ".hes", ".kss", ".nsf", ".nsfe", ".sap", ".spc", ".vgm", ".vgz"];
+                mptsplit = [".mptm", ".xm", ".s3m", ".it", ".mod", ".itp"],
+                vgmsplit = [".ay", ".gbs", ".gym", ".hes", ".kss", ".nsf", ".nsfe", ".sap", ".spc", ".vgm", ".vgz"];
 
             int i, j, len = 0;
             try
@@ -47,7 +47,7 @@ namespace dtl.modules {
                 {
                     FileAttachment[] s = [new(new MemoryStream(await File.ReadAllBytesAsync(".core/lgo.png")), "logo.png")];
 
-                    List<string> combined = [.. furmats, .. midi, .. sid, .. libmodplug, .. libgme];
+                    List<string> combined = [.. furnacef, .. midi, .. sid, .. mptsplit, .. vgmsplit];
                     string fm = null;
                     for (i = 0; i < combined.Count; i++)
                         fm += $"`{combined[i]}` ";
@@ -82,9 +82,7 @@ namespace dtl.modules {
                 byte[] fnbytes = Encoding.Unicode.GetBytes(n);
                 ulong hash = 0; // not bothered using sha
                 for (i = 0; i < dt.Length; i++)
-                {
-                    hash ^= dt[i] + (ulong)i + fnbytes[i % fnbytes.Length];
-                }
+                    hash ^= ~(dt[i] ^ ((ulong)i + fnbytes[i % fnbytes.Length]));
                 hash += loopsOrDuration + subsong + (uint)format;
 
                 string tmpfoldr = $"{API.tmpdir}/{Random256.Value}";
@@ -104,11 +102,11 @@ namespace dtl.modules {
 
                 Thread frontend = new(async () => { // just so that it DOESN'T THROW AN ERRO
                     await Task.Delay(60 * 1000);
-                    if (processing) await ModifyOriginalResponseAsync(m => m.Content = $"{cff}\n-# This will take a while...");
+                    if (processing) await ModifyOriginalResponseAsync(m => m.Content = $"{cff}\n-# this is taking a bit, standby...");
                     while (processing)
                     {
                         await Task.Delay(30000);
-                        if (processing) await ModifyOriginalResponseAsync(m => m.Content = $"{cff}\n-# {API.FriendlyTimeFormat(sw.Elapsed)} elapsed");
+                        if (processing) await ModifyOriginalResponseAsync(m => m.Content = $"{cff}\n-# {API.FormatTime(sw.Elapsed)} elapsed");
                         else break;
                     }
                 });
@@ -122,13 +120,13 @@ namespace dtl.modules {
                     {
                         if (btn.User.Id != orgusr.Id)
                         {
-                            await btn.RespondAsync($"you cannot cancel {orgusr.Mention}'s render.", ephemeral: true);
+                            await btn.RespondAsync($"🪑", ephemeral: true);
                             return;
                         }
 
                         cf.Cancel();
                         t = await Context.Interaction.ModifyOriginalResponseAsync(m => {
-                            m.Content = "canceled";
+                            m.Content = "render aborted";
                             m.Components = null;
                         });
                         processing = false;
@@ -142,9 +140,9 @@ namespace dtl.modules {
                         processing = true;
                         if (!API.modulecache.ContainsKey(hash))
                         {
-                            if (furmats.Contains(ext))
+                            if (furnacef.Contains(ext))
                             {
-                                cff = oscRender ? "Seperating channels..." : "Rendering..";
+                                cff = "Rendering with Furnace..";
                                 t = await ModifyOriginalResponseAsync(m => {
                                     m.Content = cff;
                                     m.Components = cns.Build();
@@ -157,9 +155,9 @@ namespace dtl.modules {
                                 if (!oscRender)
                                     r = await ProcessHandler.ConvertMediaStdOut(what, "wav", ct: cf.Token); // pass to std out
                             }
-                            else if (libmodplug.Contains(ext))
+                            else if (mptsplit.Contains(ext))
                             {
-                                cff = "Rendering..";
+                                cff = "Rendering tracker module..";
                                 t = await ModifyOriginalResponseAsync(m => {
                                     m.Content = cff;
                                     m.Components = cns.Build();
@@ -172,9 +170,9 @@ namespace dtl.modules {
                                 if (!oscRender)
                                     r = await ProcessHandler.ConvertMediaStdOut($"{tmpfoldr}/{s}_master.wav", "wav", ct: cf.Token);
                             }
-                            else if (libgme.Contains(ext))
+                            else if (vgmsplit.Contains(ext))
                             {
-                                cff = "Rendering..";
+                                cff = "rendering..";
                                 t = await ModifyOriginalResponseAsync(m => {
                                     m.Content = cff;
                                     m.Components = cns.Build();
@@ -194,7 +192,7 @@ namespace dtl.modules {
                             }
                             else if (midi.Contains(ext))
                             {
-                                cff = "Rendering..";
+                                cff = "Rendering MIDI..";
                                 t = await ModifyOriginalResponseAsync(m => {
                                     m.Content = cff;
                                     m.Components = cns.Build();
@@ -210,7 +208,7 @@ namespace dtl.modules {
                             }
                             else if (sid.Contains(ext))
                             {
-                                cff = oscRender ? "Seperating channels..." : "Rendering..";
+                                cff = "Rendering Commodore SID file..";
                                 t = await ModifyOriginalResponseAsync(m => {
                                     m.Content = cff;
                                     m.Components = cns.Build();
@@ -355,7 +353,7 @@ namespace dtl.modules {
                                 _ => null,
                             };
 
-                            cff = "fragmenting video..";
+                            cff = "post processing video..";
                             t = await ModifyOriginalResponseAsync(m => {
                                 m.Content = cff;
                                 m.Components = cns.Build();
@@ -422,11 +420,11 @@ namespace dtl.modules {
                             m.Components = cns.Build();
                         });
                         MemoryStream m = new(r.stdout);
-                        if (r.stdout.LongLength > 10000000) // WHY IS IT 10 MB DISCORD SHOW YOURSELF
+                        if (r.stdout.LongLength > 10000000)
                         {
                             if (API.settings.usecatbox)
                             {
-                                cff = "Bringing the heavy lifting externally..";
+                                cff = "uploading to external source";
                                 t = await ModifyOriginalResponseAsync(m => {
                                     m.Content = cff;
                                     m.Components = cns.Build();
@@ -442,7 +440,7 @@ namespace dtl.modules {
                             else
                             {
                                 r.exitcode = 0xDDFA14;
-                                r.message = $"over 10mb.";
+                                r.message = $"over 10mb!";
                                 goto failure;
                             }
                         }
@@ -454,7 +452,7 @@ namespace dtl.modules {
 
                         await ModifyOriginalResponseAsync(m =>
                         {
-                            m.Content = $"{Context.User.Mention}'s render finished!\n-# **time:** *{API.FriendlyTimeFormat(sw.Elapsed)}*\n***{(externurl != null ? $"[{n}]({externurl})" : n)}***";
+                            m.Content = $"{Context.User.Mention}'s render finished!\n-# **time:** *{API.FormatTime(sw.Elapsed)}*\n***{(externurl != null ? $"[{n}]({externurl})" : n)}***";
                             if (s != null)
                                 m.Attachments = s;
                             m.Components = cb.Build();
@@ -476,13 +474,13 @@ namespace dtl.modules {
                 {
                     processing = false;
                     t = await Context.Interaction.ModifyOriginalResponseAsync(m => {
-                        m.Content = cff + $"\n-# FAILED";
+                        m.Content = cff + $"\n-# **FAILURE**";
                         m.Components = null;
                     });
                     EmbedBuilder e = new()
                     {
                         Color = API.RedColor,
-                        Title = $"Error processing result",
+                        Title = $"RENDER FAILURE",
                         Description = $"```ansi\n\u001b[2;31m{r.exitcode} \u001b[2;30m| \u001b[2;37m{r.message}\u001b[0m```\n"
                     };
                     await Context.Interaction.FollowupAsync(embed: e.Build());

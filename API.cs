@@ -22,7 +22,7 @@ namespace dtl {
 
         public static Color RedColor => new(255, 20, 75);
 
-        public static string FriendlyTimeFormat(TimeSpan elapsed) {
+        public static string FormatTime(TimeSpan elapsed) {
             if (elapsed.TotalHours >= 1)
                 return $"{(int)elapsed.TotalHours}h{elapsed.Minutes}m{elapsed.Seconds}s";
             else if (elapsed.TotalMinutes >= 1)
