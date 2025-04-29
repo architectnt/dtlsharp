@@ -99,12 +99,24 @@ namespace dtl.modules {
                 string cff = null;
                 bool oscRender = format == FileFormat.mp4,
                 processing = false;
+                CancellationTokenSource cf = new();
+
 
                 Thread frontend = new(async () => { // just so that it DOESN'T THROW AN ERRO
                     await Task.Delay(60 * 1000);
                     if (processing) await ModifyOriginalResponseAsync(m => m.Content = $"{cff}\n-# this is taking a bit, standby...");
                     while (processing)
                     {
+                        if(sw.Elapsed.TotalMinutes >= 14)
+                        {
+                            cf.Cancel();
+                            t = await Context.Interaction.ModifyOriginalResponseAsync(m => {
+                                m.Content = "aborted; took way too long!";
+                                m.Components = null;
+                            });
+                            processing = false;
+                            break;
+                        }
                         await Task.Delay(30000);
                         if (processing) await ModifyOriginalResponseAsync(m => m.Content = $"{cff}\n-# {API.FormatTime(sw.Elapsed)} elapsed");
                         else break;
@@ -112,7 +124,6 @@ namespace dtl.modules {
                 });
                 frontend.Start();
 
-                CancellationTokenSource cf = new();
                 async Task CancelButton(SocketMessageComponent btn)
                 {
                     if (btn.Message.Id != t.Id) return;
