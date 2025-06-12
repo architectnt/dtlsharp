@@ -35,7 +35,7 @@ namespace dtl.Internal {
             f += $"  width: {x}\n  height: {y}\n";
             f += "ffmpeg_cli: !FFmpegOutputConfig\n" +
                 "  path: \n" +
-                $"  video_template: -c:v {ProcessHandler.GetHWAccelCodec(GPUDetector.GetGPUType(), format, codec)} {(format == FileFormat.mp4 
+                $"  video_template: -b:v 6000 -c:v {ProcessHandler.GetHWAccelCodec(GPUDetector.GetGPUType(), format, codec)} {(format == FileFormat.mp4 
                     ? "-movflags +faststart+frag_keyframe+empty_moov+default_base_moof" 
                     : null)}"+
                 "\n";
